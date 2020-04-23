@@ -1,0 +1,6 @@
+[resources]
+operator.url = http://0.0.0.0:8050
+namespace = nevermind-compute
+group = nevermind.network
+version = v1
+plural = workflows
