@@ -132,12 +132,14 @@ as first argument, to bump the version accordingly.
 ## Attribution
 
 This library service in the [Ocean Protocol](https://oceanprotocol.com) [Operator Service](https://github.com/oceanprotocol/operator-service).
-It keeps the same Apache v2 License and adds some improvements.
+It keeps the same Apache v2 License and adds some improvements. See [NOTICE file](NOTICE).
 
 ## License
 
 ```
-Copyright 2020 Keyko GmbH.
+Copyright 2020 Keyko GmbH
+This product includes software developed at
+BigchainDB GmbH and Ocean Protocol (https://www.oceanprotocol.com/)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
