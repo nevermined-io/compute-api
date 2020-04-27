@@ -12,7 +12,7 @@ with open('CHANGELOG.md') as history_file:
     history = history_file.read()
 
 install_requirements = [
-    'nevermind-contracts==0.0.1',
+    'nevermind-contracts==0.1.2',
     'coloredlogs==10.0',
     'Flask==1.0.2',
     'Flask-Cors==3.0.6',
