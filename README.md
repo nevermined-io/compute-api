@@ -1,6 +1,6 @@
 [![banner](https://raw.githubusercontent.com/keyko-io/assets/master/images/logo/small/keyko_logo@2x-100.jpg)](https://keyko.io)
 
-# Nevermind Compute API 
+# Nevermined Compute API 
 
 > Compute to the Data Infrastructure Operator Micro-service
 
@@ -8,7 +8,7 @@
 Table of Contents
 =================
 
-   * [Operator-Service](#operator-service)
+   * [nevermined-compute-api](#nevermined-compute-api)
       * [About](#about)
       * [Getting Started](#getting-started)
          * [Local Environment](#local-environment)
@@ -22,9 +22,9 @@ Table of Contents
 
 ## About
 
-The Compute API is a micro-service implementing the Nevermind Compute to the Data use case, 
+The Compute API is a micro-service implementing the Nevermined Compute to the Data use case, 
 in charge of managing the workflow executing requests.
-Typically the Compute Service is integrated with the [Nevermind Gateway](https://github.com/keyko-io/nevermind-gateway),
+Typically the Compute Service is integrated with the [Nevermined Gateway](https://github.com/keyko-io/nevermined-gateway),
 but can be called independently of it.
 
 The Compute API is in charge of establishing the communication with the K8s cluster, allowing to:

@@ -1,16 +1,13 @@
-#  Copyright 2018 Ocean Protocol Foundation
-#  SPDX-License-Identifier: Apache-2.0
-
 import configparser
 
 from flask import jsonify
 from flask_swagger import swagger
 from flask_swagger_ui import get_swaggerui_blueprint
 
-from operator_service.constants import BaseURLs, ConfigSections, Metadata
-from operator_service.myapp import app
-from operator_service.routes import services
-from operator_service.admin_routes import adminpg_services
+from nevermined_compute_api.constants import BaseURLs, ConfigSections, Metadata
+from nevermined_compute_api.myapp import app
+from nevermined_compute_api.routes import services
+
 
 def get_version():
     conf = configparser.ConfigParser()
@@ -37,11 +34,11 @@ def spec():
 
 config = configparser.ConfigParser()
 config.read(app.config['CONFIG_FILE'])
-operator_url = config.get(ConfigSections.RESOURCES, 'operator.url')
+compute_api_url = config.get(ConfigSections.RESOURCES, 'compute.api.url')
 # Call factory function to create our blueprint
 swaggerui_blueprint = get_swaggerui_blueprint(
     BaseURLs.SWAGGER_URL,
-    operator_url + '/spec',
+    compute_api_url + '/spec',
     config={  # Swagger UI config overrides
         'app_name': "Test application"
     },
@@ -50,7 +47,6 @@ swaggerui_blueprint = get_swaggerui_blueprint(
 # Register blueprint at URL
 app.register_blueprint(swaggerui_blueprint, url_prefix=BaseURLs.SWAGGER_URL)
 app.register_blueprint(services, url_prefix=BaseURLs.BASE_OPERATOR_URL)
-app.register_blueprint(adminpg_services, url_prefix=BaseURLs.BASE_OPERATOR_URL)
 
 if __name__ == '__main__':
     app.run(port=8050)
