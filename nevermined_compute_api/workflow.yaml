@@ -2,7 +2,7 @@ apiVersion: keyko.com/v1alpha
 kind: WorkFlow
 metadata:
   name: workflow-1
-  namespace: ocean-compute
+  namespace: nevermined-compute
   labels:
     did: "0123456789"
     workflow: workflow-1

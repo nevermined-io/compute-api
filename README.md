@@ -8,7 +8,7 @@
 Table of Contents
 =================
 
-   * [Operator-Service](#operator-service)
+   * [nevermined-compute-api](#nevermined-compute-api)
       * [About](#about)
       * [Getting Started](#getting-started)
          * [Local Environment](#local-environment)

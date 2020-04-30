@@ -27,7 +27,7 @@ spec:
       - env:
         - name: REACT_APP_BRIZO_ADDRESS
           value: 0x008c25ed3594e094db4592f4115d5fa74c4f41ea
-        image: keykoio/operator-service
+        image: keykoio/nevermined-compute-api
         imagePullPolicy: Always
         name: operator-api
         ports:
@@ -40,8 +40,8 @@ spec:
       nodeSelector:
         environment: production
       restartPolicy: Always
-      serviceAccount: operator-service
-      serviceAccountName: operator-service
+      serviceAccount: nevermined-compute-api
+      serviceAccountName: nevermined-compute-api
       schedulerName: default-scheduler
       securityContext: {}
       terminationGracePeriodSeconds: 30

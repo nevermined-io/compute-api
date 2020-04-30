@@ -1,5 +1,5 @@
 [resources]
-operator.url = http://0.0.0.0:8050
+compute.api.url = http://0.0.0.0:8050
 namespace = nevermined-compute
 group = nevermined.network
 version = v1
