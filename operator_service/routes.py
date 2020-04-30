@@ -1,37 +1,42 @@
-import os
-from os import path
+
 import logging
+import uuid
+from configparser import ConfigParser
+from os import path
 
 import kubernetes
-from flask import Blueprint, jsonify, request
+import yaml
+from flask import Blueprint, jsonify, request, Response
+from kubernetes import client, config
 from kubernetes.client.rest import ApiException
-
-from operator_service.config import Config
-from operator_service.data_store import create_sql_job, get_sql_status, get_sql_jobs, stop_sql_job, remove_sql_job
-from operator_service.kubernetes_api import KubeAPI
-from operator_service.utils import (
-    create_compute_job,
-    check_required_attributes,
-    generate_new_id,
-    process_signature_validation,
-    get_compute_resources
-)
 
 services = Blueprint('services', __name__)
 
 # Configuration to connect to k8s.
 if not path.exists('/.dockerenv'):
-    kubernetes.config.load_kube_config()
+    config.load_kube_config()
 else:
-    kubernetes.config.load_incluster_config()
+    config.load_incluster_config()
 
-config = Config()
+# create instances of the API classes
+api_customobject = client.CustomObjectsApi()
+api_core = client.CoreV1Api()
 
 
-@services.route('/compute', methods=['POST'])
-def start_compute_job():
+config_parser = ConfigParser()
+configuration = config_parser.read('config.ini')
+group = config_parser.get('resources', 'group')  # str | The custom resource's group name
+version = config_parser.get('resources', 'version')  # str | The custom resource's version
+namespace = config_parser.get('resources', 'namespace')  # str | The custom resource's namespace
+plural = config_parser.get('resources',
+                           'plural')  # str | The custom resource's plural name. For TPRs this
+
+
+
+@services.route('/init', methods=['POST'])
+def init_execution():
     """
-    Create and start the compute job
+    Initialize the execution when someone call to the execute endpoint in brizo.
     ---
     tags:
       - operation
@@ -40,225 +45,124 @@ def start_compute_job():
     parameters:
       - in: body
         name: body
-        required: false
+        required: true
         description: Init workflow.
         schema:
-          workflow:
-          nullable: true
-          example: {
-                        "agreementId":"0x111111",
-                        "owner":"0xC41808BBef371AD5CFc76466dDF9dEe228d2BdAA",
-                        "providerSignature":"ae01",
-                        "workflow":{
-                            "stages": [
-                              {
-                                "index": 0,
-                                "input": [
-                                    {
-                                        "id": "did:op:87bdaabb33354d2eb014af5091c604fb4b0f67dc6cca4d18a96547bffdc27bcf",
-                                        "url": [
-                                            "https://data.ok.gov/sites/default/files/unspsc%20codes_3.csv"
-                                        ],
-                                        "index": 0
-                                    },
-                                    {
-                                        "id": "did:op:1384941e6f0b46299b6e515723df3d8e8e5d1fb175554467a1cb7bc613f5c72e",
-                                        "url": [
-                                            "https://data.ct.gov/api/views/2fi9-sgi3/rows.csv?accessType=DOWNLOAD"
-                                        ],
-                                        "index": 1
-                                    }
-                                ],
-                                "compute": {
-                                    "Instances": 1,
-                                    "namespace": "withgpu",
-                                    "maxtime": 3600
-                                },
-                                "algorithm": {
-                                    "id": "did:op:87bdaabb33354d2eb014af5091c604fb4b0f67dc6cca4d18a96547bffdc27bcf",
-                                    "url": "https://raw.githubusercontent.com/oceanprotocol/test-algorithm/master/javascript/algo.js",
-                                    "rawcode": "console.log('this is a test')",
-                                    "container": {
-                                        "image": "node",
-                                        "tag": "10",
-                                        "entrypoint": "node $ALGO"
-                                    }
-                                },
-                                "output": {
-                                    "nodeUri": "https://nile.dev-ocean.com",
-                                    "brizoUri": "https://brizo.marketplace.dev-ocean.com",
-                                    "brizoAddress": "0x4aaab179035dc57b35e2ce066919048686f82972",
-                                    "metadata": {
-                                        "name": "Workflow output"
-                                    },
-                                    "metadataUri": "https://aquarius.marketplace.dev-ocean.com",
-                                    "secretStoreUri": "https://secret-store.nile.dev-ocean.com",
-                                    "whitelist": [
-                                        "0x00Bd138aBD70e2F00903268F3Db08f2D25677C9e",
-                                        "0xACBd138aBD70e2F00903268F3Db08f2D25677C9e"
-                                    ],
-                                    "owner":"0xC41808BBef371AD5CFc76466dDF9dEe228d2BdAA",
-                                    "publishOutput":true,
-                                    "publishAlgorithmLog":true
-                                  }
-                              }
-                            ]
+          type: object
+          required:
+            - serviceAgreementId
+            - workflow
+          properties:
+            serviceAgreementId:
+              description: Identifier of the service agreement.
+              type: string
+              example: 'bb23s87856d59867503f80a690357406857698570b964ac8dcc9d86da4ada010'
+            workflow:
+              description: Workflow definition.
+              type: dictionary
+              example: {"@context": "https://w3id.org/future-method/v1",
+                        "authentication": [],
+                        "created": "2019-04-09T19:02:11Z",
+                        "id": "did:nv:bda17c126f5a411c8edd94cd0700e466a860f269a0324b77ae37d04cf84bb894",
+                        "proof": {
+                          "created": "2019-04-09T19:02:11Z",
+                          "creator": "0x00Bd138aBD70e2F00903268F3Db08f2D25677C9e",
+                          "signatureValue": "1cd57300733bcbcda0beb59b3e076de6419c0d7674e7befb77820b53c79e3aa8f1776effc64cf088bad8cb694cc4d71ebd74a13b2f75893df5a53f3f318f6cf828",
+                          "type": "DDOIntegritySignature"
+                        },
+                        "publicKey": [
+                          {
+                            "id": "did:nv:60000f48357a42fbb8d6ff3a25a23413e9cc852db091485eb89506a5fed9f33c",
+                            "owner": "0x00Bd138aBD70e2F00903268F3Db08f2D25677C9e",
+                            "type": "EthereumECDSAKey"
                           }
-                        }
+                        ],
+                        "service": [
+                          {
+                            "index": "0",
+                            "serviceEndpoint": "https://gateway.com/api/v1/aquarius/assets/ddo/{did}",
+                            "type": "Metadata",
+                            "attributes": {
+                              "main": {
+                                "dateCreated": "2012-10-10T17:00:00Z",
+                                "type": "workflow",
+                                "datePublished": "2019-04-09T19:02:11Z"
+                              },
+                              "workflow": {
+                                "stages": [
+                                  {
+                                    "index": 0,
+                                    "stageType": "Filtering",
+                                    "requirements": {
+                                      "serverInstances": 1,
+                                      "container": {
+                                        "image": "openjdk",
+                                        "tag": "14-jdk",
+                                        "checksum": "sha256:cb57ecfa6ebbefd8ffc7f75c0f00e57a7fa739578a429b6f72a0df19315deadc"
+                                      }
+                                    },
+                                    "input": [
+                                      {
+                                        "index": 0,
+                                        "id": "did:nv:b06d19edca5b4b17b7ee0cdee9718d97a4790cc520234037b78d27b4169e7fc7"
+                                      },
+                                      {
+                                        "index": 1,
+                                        "id": "did:nv:b06d19edca5b4b17b7ee0cdee9718d97a4790cc520234037b78d27b4169e7fc7"
+                                      }
+                                    ],
+                                    "transformation": {
+                                      "id": "did:nv:eee5a8ac40454b139b5cb1aceb425e7adfaa0b0742704a5d8041bde081b632ec"
+                                    },
+                                    "output": {
+                                      "metadataUrl": "https://metadata.com",
+                                      "secretStoreUrl": "https://secret-store.duero.dev-ocean.com",
+                                      "accessProxyUrl": "https://gateway.com",
+                                      "brizoAddress": "0xfEF2d5e1670342b9EF22eeeDcb287EC526B48095",
+                                      "metadata": {
+                                        "name": "Workflow output"
+                                      }
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        ]
+                      }
     response:
       201:
         description: Workflow inited successfully.
       400:
         description: Some error
     """
-
-    data = request.args if request.args else request.json
-    required_attributes = [
-        'workflow',
-        'agreementId',
-        'owner',
-        'providerSignature'
-    ]
-    msg, status = check_required_attributes(required_attributes, data, 'POST:/compute')
-    if msg:
-        return jsonify(error=msg), status
-
-    workflow = data.get('workflow')
-    agreement_id = data.get('agreementId')
-    owner = data.get('owner')
-    if not workflow:
-        return jsonify(error=f'`workflow` is required in the payload and must '
-                       f'include workflow stages'), 400
-
-    # verify provider's signature
-    msg, status = process_signature_validation(data.get('providerSignature'), agreement_id)
-    if msg:
-        return jsonify(error=f'`providerSignature` of agreementId is required.'), status
-
-    stages = workflow.get('stages')
-    if not stages:
-        logging.error(f'Missing stages')
-        return jsonify(error='Missing stages'), 400
-
-    for _attr in ('algorithm', 'compute', 'input', 'output'):
-        if _attr not in stages[0]:
-            logging.error(f'Missing algorithm in stage')
-            return jsonify(error=f'Missing {_attr} in stage 0'), 400
-    # loop through stages and add resources
-    timeout = int(os.getenv("ALGO_POD_TIMEOUT", 0))
-    compute_resources_def = get_compute_resources()
-    for count, astage in enumerate(workflow['stages']):
-        # check timeouts
-        if timeout > 0:
-            if 'maxtime' in astage['compute']:
-                maxtime = int(astage['compute']['maxtime'])
-            else:
-                maxtime = 0
-            if timeout < maxtime or maxtime <= 0:
-                astage['compute']['maxtime'] = timeout
-                logging.debug(f"Maxtime in workflow was {maxtime}. Overwritten to {timeout}")
-        # get resources
-        astage['compute']['resources'] = compute_resources_def
-
-    job_id = generate_new_id()
-    logging.debug(f'Got job_id: {job_id}')
-    body = create_compute_job(
-        workflow, job_id, config.group, config.version, config.namespace
-    )
-    logging.debug(f'Got body: {body}')
-
-    kube_api = KubeAPI(config)
+    execution_id = generate_new_id()
+    body = create_execution(request.json['workflow'], execution_id)
     try:
-        api_response = kube_api.create_namespaced_custom_object(body)
+        api_response = api_customobject.create_namespaced_custom_object(group, version, namespace,
+                                                                        plural, body)
         logging.info(api_response)
-        create_sql_job(agreement_id, str(job_id), owner)
-        status_list = get_sql_status(agreement_id, str(job_id), owner)
-        return jsonify(status_list), 200
+        return execution_id, 200
 
     except ApiException as e:
-        logging.error(f'Exception when calling CustomObjectsApi->create_namespaced_custom_object: {e}')
-        return jsonify(error='Unable to create job'), 400
+        logging.error(
+            f'Exception when calling CustomObjectsApi->create_namespaced_custom_object: {e}')
+        return 'Workflow could not start', 400
 
 
-@services.route('/compute', methods=['PUT'])
-def stop_compute_job():
+@services.route('/stop', methods=['DELETE'])
+def stop_execution():
     """
-    Stop the current compute job..
+    Stop the current workflow execution.
     ---
     tags:
       - operation
     consumes:
       - application/json
     parameters:
-      - name: agreementId
-        in: query
-        description: agreementId
-        type: string
-      - name: jobId
-        in: query
-        description: Id of the job.
-        type: string
-      - name: owner
-        in: query
-        description: owner
-        type: string
+      - name: executionId
     """
-    try:
-        data = request.args if request.args else request.json
-
-        agreement_id = data.get('agreementId')
-        owner = data.get('owner')
-        job_id = data.get('jobId')
-
-        if not agreement_id or len(agreement_id) < 2:
-            agreement_id = None
-
-        if not job_id or len(job_id) < 2:
-            job_id = None
-
-        if not owner or len(owner) < 2:
-            owner = None
-        if owner is None and agreement_id is None and job_id is None:
-            msg = f'You have to specify one of agreementId, jobId or owner'
-            logging.error(msg)
-            return jsonify(error=msg), 400
-        jobs_list = get_sql_jobs(agreement_id, job_id, owner)
-        for ajob in jobs_list:
-            name = ajob
-            logging.info(f'Stopping job : {name}')
-            stop_sql_job(name)
-
-        status_list = get_sql_status(agreement_id, job_id, owner)
-        return jsonify(status_list), 200
-
-    except ApiException as e:
-        logging.error(f'Exception when stopping compute job: {e}')
-        return jsonify(error=f'Error stopping job: {e}'), 400
-
-
-@services.route('/compute', methods=['DELETE'])
-def delete_compute_job():
-    """
-    Deletes the current compute job.
-    ---
-    tags:
-      - operation
-    consumes:
-      - application/json
-    parameters:
-      - name: agreementId
-        in: query
-        description: agreementId
-        type: string
-      - name: jobId
-        in: query
-        description: Id of the job.
-        type: string
-      - name: owner
-        in: query
-        description: owner
-        type: string
-    """
+    name = request.args['executionId']  # str | the custom object's name
     body = kubernetes.client.V1DeleteOptions()  # V1DeleteOptions |
     grace_period_seconds = 56  # int | The duration in seconds before the object should be
     # deleted. Value must be non-negative integer. The value zero indicates delete immediately.
@@ -272,100 +176,153 @@ def delete_compute_job():
     # will be performed. Either this field or OrphanDependents may be set, but not both. The
     # default policy is decided by the existing finalizer set in the metadata.finalizers and the
     # resource-specific default policy. (optional)
+
     try:
-        data = request.args if request.args else request.json
-        agreement_id = data.get('agreementId')
-        owner = data.get('owner')
-        job_id = data.get('jobId')
-
-        if not agreement_id or len(agreement_id) < 2:
-            agreement_id = None
-
-        if not job_id or len(job_id) < 2:
-            job_id = None
-
-        if not owner or len(owner) < 2:
-            owner = None
-
-        if owner is None and agreement_id is None and job_id is None:
-            msg = f'You have to specify one of agreementId, jobId or owner'
-            logging.error(msg)
-            return jsonify(error=msg), 400
-
-        kube_api = KubeAPI(config)
-        jobs_list = get_sql_jobs(agreement_id, job_id, owner)
-        logging.debug(f'Got {jobs_list}')
-        for ajob in jobs_list:
-            name = ajob
-            remove_sql_job(name)
-            api_response = kube_api.delete_namespaced_custom_object(
-                name,
-                body,
-                grace_period_seconds=grace_period_seconds,
-                orphan_dependents=orphan_dependents,
-                propagation_policy=propagation_policy
-            )
-            logging.debug(api_response)
-        status_list = get_sql_status(agreement_id, job_id, owner)
-        return jsonify(status_list), 200
-
+        api_response = api_customobject.delete_namespaced_custom_object(group, version, namespace,
+                                                                        plural, name, body,
+                                                                        grace_period_seconds=grace_period_seconds,
+                                                                        orphan_dependents=orphan_dependents,
+                                                                        propagation_policy=propagation_policy)
+        logging.info(api_response)
     except ApiException as e:
-        logging.error(f'Exception when calling CustomObjectsApi->delete_namespaced_custom_object: {e}')
-        return jsonify(error=f'Error deleting job {e}'), 400
+        print("Exception when calling CustomObjectsApi->delete_namespaced_custom_object: %s\n" % e)
+    return 'Successfully delete', 200
 
 
-@services.route('/compute', methods=['GET'])
-def get_compute_job_status():
+@services.route('/info/<execution_id>', methods=['GET'])
+def get_execution_info(execution_id):
     """
-    Get status for an specific or multiple jobs.
+    Get info for an execution id.
     ---
     tags:
       - operation
     consumes:
       - application/json
     parameters:
-      - name: agreementId
-        in: query
-        description: agreementId
+      - name: executionId
+        in: path
+        description: Id of the execution.
+        required: true
         type: string
-      - name: jobId
+    """
+    try:
+        api_response = api_customobject.get_namespaced_custom_object(group, version, namespace, plural,
+                                                                     execution_id)
+        logging.info(api_response)
+        return yaml.dump(api_response), 200
+    except ApiException as e:
+        logging.error(f'The executionId {execution_id} is not registered in your namespace.')
+        return f'The executionId {execution_id} is not registered in your namespace.', 400
+
+
+@services.route('/list', methods=['GET'])
+def list_executions():
+    """
+    List all the execution workflows.
+    ---
+    tags:
+      - operation
+    consumes:
+      - application/json
+    """
+    try:
+        api_response = api_customobject.list_namespaced_custom_object(group, version, namespace, plural)
+        result = list()
+        for i in api_response['items']:
+            result.append(i['metadata']['name'])
+        logging.info(api_response)
+        return jsonify(result), 200
+
+    except ApiException as e:
+        logging.error(
+            f'Exception when calling CustomObjectsApi->list_cluster_custom_object: {e}')
+        return 'Error listing workflows', 400
+
+
+@services.route('/logs', methods=['GET'])
+def get_logs():
+    """
+    Get the logs for an execution id.
+    ---
+    tags:
+      - operation
+    consumes:
+      - text/plain
+    parameters:
+      - name: executionId
         in: query
-        description: Id of the job.
+        description: Id of the execution.
+        required: true
         type: string
-      - name: owner
+      - name: component
         in: query
-        description: owner
+        description: Workflow component (configure, algorithm, publish)
+        required: true
         type: string
     responses:
       200:
-        description: Get correctly the status
+        description: Get correctly the logs
       400:
-        description: Error
+        description: Error consume Kubernetes API
+      404:
+        description: Pod not found for the given parameters
     """
+    data = request.args
+    required_attributes = [
+        'executionId',
+        'component'
+    ]
     try:
-        data = request.args if request.args else request.json
-        agreement_id = data.get('agreementId')
-        owner = data.get('owner')
-        job_id = data.get('jobId')
+        execution_id = data.get('executionId')
+        component = data.get('component')
+        # First we need to get the name of the pods
+        label_selector = f'workflow={execution_id},component={component}'
+        logging.debug(f'Looking pods in ns {namespace} with labels {label_selector}')
+        pod_response = api_core.list_namespaced_pod(namespace, label_selector=label_selector)
+    except ApiException as e:
+        logging.error(
+            f'Exception when calling CustomObjectsApi->list_namespaced_pod: {e}')
+        return 'Error getting the logs', 400
 
-        if not agreement_id or len(agreement_id) < 2:
-            agreement_id = None
+    try:
+        pod_name = pod_response.items[0].metadata.name
+        logging.debug(f'pods found: {pod_response}')
+    except IndexError as e:
+        logging.warning(f'Exception getting information about the pod with labels {label_selector}.'
+                        f' Probably pod does not exist')
+        return f'Pod with workflow={execution_id} and component={component} not found', 404
 
-        if not job_id or len(job_id) < 2:
-            job_id = None
-
-        if not owner or len(owner) < 2:
-            owner = None
-
-        if owner is None and agreement_id is None and job_id is None:
-            msg = f'You have to specify one of agreementId, jobId or owner'
-            logging.error(msg)
-            return jsonify(error=msg), 400
-        logging.debug("Try to start")
-        api_response = get_sql_status(agreement_id, job_id, owner)
-        return jsonify(api_response), 200
+    try:
+        logging.debug(f'looking logs for pod {pod_name} in namespace {namespace}')
+        logs_response = api_core.read_namespaced_pod_log(name=pod_name, namespace=namespace)
+        r = Response(response=logs_response, status=200, mimetype="text/plain")
+        r.headers["Content-Type"] = "text/plain; charset=utf-8"
+        return r
 
     except ApiException as e:
-        msg = f'Error getting the status: {e}'
-        logging.error(msg)
-        return jsonify(error=msg), 400
+        logging.error(
+            f'Exception when calling CustomObjectsApi->read_namespaced_pod_log: {e}')
+        return 'Error getting the logs', 400
+
+
+def create_execution(workflow, execution_id):
+    execution = dict()
+    execution['apiVersion'] = group + '/' + version
+    execution['kind'] = 'WorkFlow'
+    execution['metadata'] = dict()
+    execution['metadata']['name'] = execution_id
+    execution['metadata']['namespace'] = namespace
+    execution['metadata']['labels'] = dict()
+    execution['metadata']['labels']['workflow'] = execution_id
+    execution['spec'] = dict()
+    execution['spec']['metadata'] = workflow
+    return execution
+
+
+# TODO Use the commons utils library to do this when we set up the project.
+def generate_new_id():
+    """
+    Generate a new id without prefix.
+    :return: Id, str
+    """
+    return uuid.uuid4().hex

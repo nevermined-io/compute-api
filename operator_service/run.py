@@ -1,6 +1,3 @@
-#  Copyright 2018 Ocean Protocol Foundation
-#  SPDX-License-Identifier: Apache-2.0
-
 import configparser
 
 from flask import jsonify
@@ -10,7 +7,7 @@ from flask_swagger_ui import get_swaggerui_blueprint
 from operator_service.constants import BaseURLs, ConfigSections, Metadata
 from operator_service.myapp import app
 from operator_service.routes import services
-from operator_service.admin_routes import adminpg_services
+
 
 def get_version():
     conf = configparser.ConfigParser()
@@ -50,7 +47,6 @@ swaggerui_blueprint = get_swaggerui_blueprint(
 # Register blueprint at URL
 app.register_blueprint(swaggerui_blueprint, url_prefix=BaseURLs.SWAGGER_URL)
 app.register_blueprint(services, url_prefix=BaseURLs.BASE_OPERATOR_URL)
-app.register_blueprint(adminpg_services, url_prefix=BaseURLs.BASE_OPERATOR_URL)
 
 if __name__ == '__main__':
     app.run(port=8050)
