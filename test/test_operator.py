@@ -1,5 +1,7 @@
 import json
+
 import pytest
+
 
 @pytest.mark.skip(reason="Failing some times with actions")
 def test_operator(client):
