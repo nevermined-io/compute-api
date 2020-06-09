@@ -1,5 +1,5 @@
 import pytest
-from operator_service.run import app
+from nevermined_compute_api.run import app
 
 app = app
 

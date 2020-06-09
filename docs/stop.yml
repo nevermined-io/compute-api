@@ -1,0 +1,8 @@
+Stop the current workflow execution.
+---
+tags:
+  - operation
+consumes:
+  - application/json
+parameters:
+  - name: executionId
