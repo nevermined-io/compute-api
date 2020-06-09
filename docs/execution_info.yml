@@ -1,0 +1,12 @@
+Get info for an execution id.
+---
+tags:
+  - operation
+consumes:
+  - application/json
+parameters:
+  - name: executionId
+    in: path
+    description: Id of the execution.
+    required: true
+    type: string
