@@ -2,11 +2,13 @@ import logging
 import uuid
 from configparser import ConfigParser
 from os import path
+import requests
 
 import kubernetes
 import yaml
-from flask import Blueprint, jsonify, request, Response
-from kubernetes import client, config
+from argo.workflows import config
+from argo.workflows.client import V1alpha1Api
+from flask import Blueprint, jsonify, request
 from kubernetes.client.rest import ApiException
 
 services = Blueprint('services', __name__)
@@ -17,9 +19,8 @@ if not path.exists('/.dockerenv'):
 else:
     config.load_incluster_config()
 
-# create instances of the API classes
-api_customobject = client.CustomObjectsApi()
-api_core = client.CoreV1Api()
+# create instance of the API class
+v1alpha1 = V1alpha1Api()
 
 config_parser = ConfigParser()
 configuration = config_parser.read('config.ini')
@@ -39,14 +40,13 @@ def init_execution():
     execution_id = generate_new_id()
     body = create_execution(request.json['workflow'], execution_id)
     try:
-        api_response = api_customobject.create_namespaced_custom_object(group, version, namespace,
-                                                                        plural, body)
+        api_response = v1alpha1.create_namespaced_workflow(namespace, body)
         logging.info(api_response)
         return execution_id, 200
 
     except ApiException as e:
         logging.error(
-            f'Exception when calling CustomObjectsApi->create_namespaced_custom_object: {e}')
+            f'Exception when calling V1alpha1Api->create_namespaced_workflow: {e}')
         return 'Workflow could not start', 400
 
 
@@ -56,7 +56,7 @@ def stop_execution():
     Stop the current workflow execution.
     swagger_from_file: docs/stop.yml
     """
-    name = request.args['executionId']  # str | the custom object's name
+    name = request.args['execution_id']  # str | the custom object's name
     body = kubernetes.client.V1DeleteOptions()  # V1DeleteOptions |
     grace_period_seconds = 56  # int | The duration in seconds before the object should be
     # deleted. Value must be non-negative integer. The value zero indicates delete immediately.
@@ -72,11 +72,10 @@ def stop_execution():
     # resource-specific default policy. (optional)
 
     try:
-        api_response = api_customobject.delete_namespaced_custom_object(group, version, namespace,
-                                                                        plural, name, body,
-                                                                        grace_period_seconds=grace_period_seconds,
-                                                                        orphan_dependents=orphan_dependents,
-                                                                        propagation_policy=propagation_policy)
+        api_response = v1alpha1.delete_namespaced_workflow(namespace, name, body=body,
+                                                           grace_period_seconds=grace_period_seconds,
+                                                           orphan_dependents=orphan_dependents,
+                                                           propagation_policy=propagation_policy)
         logging.info(api_response)
     except ApiException as e:
         print("Exception when calling CustomObjectsApi->delete_namespaced_custom_object: %s\n" % e)
@@ -90,11 +89,9 @@ def get_execution_info(execution_id):
     swagger_from_file: docs/execution_info.yml
     """
     try:
-        api_response = api_customobject.get_namespaced_custom_object(group, version, namespace,
-                                                                     plural,
-                                                                     execution_id)
+        api_response = v1alpha1.get_namespaced_workflow(namespace, execution_id)
         logging.info(api_response)
-        return yaml.dump(api_response), 200
+        return yaml.dump(api_response.metadata), 200
     except ApiException as e:
         logging.error(f'The executionId {execution_id} is not registered in your namespace.')
         return f'The executionId {execution_id} is not registered in your namespace.', 400
@@ -107,11 +104,10 @@ def list_executions():
     swagger_from_file: docs/list_executions.yml
     """
     try:
-        api_response = api_customobject.list_namespaced_custom_object(group, version, namespace,
-                                                                      plural)
+        api_response = v1alpha1.list_namespaced_workflows(namespace)
         result = list()
-        for i in api_response['items']:
-            result.append(i['metadata']['name'])
+        for i in api_response.items:
+            result.append(i.metadata.name)
         logging.info(api_response)
         return jsonify(result), 200
 
@@ -121,54 +117,55 @@ def list_executions():
         return 'Error listing workflows', 400
 
 
-@services.route('/logs', methods=['GET'])
-def get_logs():
-    """
-    Get the logs for an execution id.
-    swagger_from_file: docs/logs.yml
-    """
-    data = request.args
-    required_attributes = [
-        'executionId',
-        'component'
-    ]
-    try:
-        execution_id = data.get('executionId')
-        component = data.get('component')
-        # First we need to get the name of the pods
-        label_selector = f'workflow={execution_id},component={component}'
-        logging.debug(f'Looking pods in ns {namespace} with labels {label_selector}')
-        pod_response = api_core.list_namespaced_pod(namespace, label_selector=label_selector)
-    except ApiException as e:
-        logging.error(
-            f'Exception when calling CustomObjectsApi->list_namespaced_pod: {e}')
-        return 'Error getting the logs', 400
-
-    try:
-        pod_name = pod_response.items[0].metadata.name
-        logging.debug(f'pods found: {pod_response}')
-    except IndexError as e:
-        logging.warning(f'Exception getting information about the pod with labels {label_selector}.'
-                        f' Probably pod does not exist')
-        return f'Pod with workflow={execution_id} and component={component} not found', 404
-
-    try:
-        logging.debug(f'looking logs for pod {pod_name} in namespace {namespace}')
-        logs_response = api_core.read_namespaced_pod_log(name=pod_name, namespace=namespace)
-        r = Response(response=logs_response, status=200, mimetype="text/plain")
-        r.headers["Content-Type"] = "text/plain; charset=utf-8"
-        return r
-
-    except ApiException as e:
-        logging.error(
-            f'Exception when calling CustomObjectsApi->read_namespaced_pod_log: {e}')
-        return 'Error getting the logs', 400
+# @services.route('/logs', methods=['GET'])
+# def get_logs():
+#     """
+#     Get the logs for an execution id.
+#     swagger_from_file: docs/logs.yml
+#     """
+#     data = request.args
+#     required_attributes = [
+#         'executionId',
+#         'component'
+#     ]
+#     try:
+#         execution_id = data.get('executionId')
+#         component = data.get('component')
+#         # First we need to get the name of the pods
+#         label_selector = f'workflow={execution_id},component={component}'
+#         logging.debug(f'Looking pods in ns {namespace} with labels {label_selector}')
+#         pod_response = api_core.list_namespaced_pod(namespace, label_selector=label_selector)
+#     except ApiException as e:
+#         logging.error(
+#             f'Exception when calling CustomObjectsApi->list_namespaced_pod: {e}')
+#         return 'Error getting the logs', 400
+#
+#     try:
+#         pod_name = pod_response.items[0].metadata.name
+#         logging.debug(f'pods found: {pod_response}')
+#     except IndexError as e:
+#         logging.warning(f'Exception getting information about the pod with labels {
+#         label_selector}.'
+#                         f' Probably pod does not exist')
+#         return f'Pod with workflow={execution_id} and component={component} not found', 404
+#
+#     try:
+#         logging.debug(f'looking logs for pod {pod_name} in namespace {namespace}')
+#         logs_response = api_core.read_namespaced_pod_log(name=pod_name, namespace=namespace)
+#         r = Response(response=logs_response, status=200, mimetype="text/plain")
+#         r.headers["Content-Type"] = "text/plain; charset=utf-8"
+#         return r
+#
+#     except ApiException as e:
+#         logging.error(
+#             f'Exception when calling CustomObjectsApi->read_namespaced_pod_log: {e}')
+#         return 'Error getting the logs', 400
 
 
 def create_execution(workflow, execution_id):
     execution = dict()
     execution['apiVersion'] = group + '/' + version
-    execution['kind'] = 'WorkFlow'
+    execution['kind'] = 'Workflow'
     execution['metadata'] = dict()
     execution['metadata']['name'] = execution_id
     execution['metadata']['namespace'] = namespace
@@ -176,6 +173,13 @@ def create_execution(workflow, execution_id):
     execution['metadata']['labels']['workflow'] = execution_id
     execution['spec'] = dict()
     execution['spec']['metadata'] = workflow
+    execution['spec']['templates'] = [dict()]
+    execution['spec']['entrypoint'] = 'whalesay'
+    execution['spec']['templates'][0]['name'] = 'whalesay'
+    execution['spec']['templates'][0]['container'] = dict()
+    execution['spec']['templates'][0]['container']['image'] = 'docker/whalesay:latest'
+    execution['spec']['templates'][0]['container']['command'] = ['cowsay']
+    execution['spec']['templates'][0]['container']['args'] = ["hello world"]
     return execution
 
 
