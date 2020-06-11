@@ -2,8 +2,6 @@ import logging
 import uuid
 from configparser import ConfigParser
 from os import path
-import requests
-
 import kubernetes
 import yaml
 from argo.workflows import config
@@ -27,8 +25,6 @@ configuration = config_parser.read('config.ini')
 group = config_parser.get('resources', 'group')  # str | The custom resource's group name
 version = config_parser.get('resources', 'version')  # str | The custom resource's version
 namespace = config_parser.get('resources', 'namespace')  # str | The custom resource's namespace
-plural = config_parser.get('resources',
-                           'plural')  # str | The custom resource's plural name. For TPRs this
 
 
 @services.route('/init', methods=['POST'])
@@ -37,12 +33,11 @@ def init_execution():
     Initialize the execution when someone call to the execute endpoint in brizo.
     swagger_from_file: docs/init.yml
     """
-    execution_id = generate_new_id()
-    body = create_execution(request.json['workflow'], execution_id)
+    body = create_execution(request.json['workflow'])
     try:
         api_response = v1alpha1.create_namespaced_workflow(namespace, body)
         logging.info(api_response)
-        return execution_id, 200
+        return api_response.metadata.name, 200
 
     except ApiException as e:
         logging.error(
@@ -50,13 +45,13 @@ def init_execution():
         return 'Workflow could not start', 400
 
 
-@services.route('/stop', methods=['DELETE'])
-def stop_execution():
+@services.route('/stop/<execution_id>', methods=['DELETE'])
+def stop_execution(execution_id):
     """
     Stop the current workflow execution.
     swagger_from_file: docs/stop.yml
     """
-    name = request.args['execution_id']  # str | the custom object's name
+    name = execution_id  # str | the custom object's name
     body = kubernetes.client.V1DeleteOptions()  # V1DeleteOptions |
     grace_period_seconds = 56  # int | The duration in seconds before the object should be
     # deleted. Value must be non-negative integer. The value zero indicates delete immediately.
@@ -162,21 +157,23 @@ def list_executions():
 #         return 'Error getting the logs', 400
 
 
-def create_execution(workflow, execution_id):
+def create_execution(workflow):
     execution = dict()
     execution['apiVersion'] = group + '/' + version
     execution['kind'] = 'Workflow'
+    # Init as a dict with the current library. It should be updated probably in the future.
+    execution['status'] = dict()
     execution['metadata'] = dict()
-    execution['metadata']['name'] = execution_id
+    execution['metadata']['generateName'] = 'nevermined-compute-'
     execution['metadata']['namespace'] = namespace
-    execution['metadata']['labels'] = dict()
-    execution['metadata']['labels']['workflow'] = execution_id
     execution['spec'] = dict()
     execution['spec']['metadata'] = workflow
-    execution['spec']['templates'] = [dict()]
     execution['spec']['entrypoint'] = 'whalesay'
+    execution['spec']['templates'] = [dict()]
+    # TODO fulfill with a loop for multiple templates and complex workflow.
     execution['spec']['templates'][0]['name'] = 'whalesay'
     execution['spec']['templates'][0]['container'] = dict()
+    execution['spec']['templates'][0]['container']['name'] = 'whalesay'
     execution['spec']['templates'][0]['container']['image'] = 'docker/whalesay:latest'
     execution['spec']['templates'][0]['container']['command'] = ['cowsay']
     execution['spec']['templates'][0]['container']['args'] = ["hello world"]
