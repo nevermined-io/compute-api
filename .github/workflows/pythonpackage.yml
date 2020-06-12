@@ -23,16 +23,11 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: setup-minikube
       uses: medyagh/setup-minikube@v0.0.2
-    - name: Checking
-      run: |
-        sleep 40
-        echo $(kubectl get pods -n kube-system)
     - name: Set up argo
       run: |
         curl -sLO https://github.com/argoproj/argo/releases/download/v2.8.1/argo-linux-amd64
         chmod +x argo-linux-amd64
         sudo mv ./argo-linux-amd64 /usr/local/bin/argo
-        echo $(argo list -n argo)
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
