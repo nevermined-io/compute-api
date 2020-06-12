@@ -21,20 +21,14 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Single Node Kubernetes Cluster
-      uses: CodingNagger/minikube-setup-action@v1.0.3
+    - name: Minikube (Single node Kubernetes) Action
+      uses: opsgang/ga-setup-minikube@v0.1.1
       with:
         minikube-version: 1.11.0
         k8s-version: 1.18.3
-#    - name: Minikube (Single node Kubernetes) Action
-#      uses: opsgang/ga-setup-minikube@v0.1.1
-#      with:
-#        minikube-version: 1.11.0
-#        k8s-version: 1.18.3
     - name: Checking
       run: |
-        echo $(kubectl config get-contexts)
-        echo $(kubectl get pods)
+        echo $(kubectl get pods -n kube-system)
     - name: Set up argo
       run: |
         curl -sLO https://github.com/argoproj/argo/releases/download/v2.8.1/argo-linux-amd64
