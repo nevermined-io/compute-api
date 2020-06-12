@@ -28,6 +28,7 @@ jobs:
         k8s-version: 1.18.3
     - name: Checking
       run: |
+        sleep 40
         echo $(kubectl get pods -n kube-system)
     - name: Set up argo
       run: |
