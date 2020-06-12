@@ -30,8 +30,8 @@ jobs:
         sudo mv ./argo-linux-amd64 /usr/local/bin/argo
         kubectl create namespace argo
         kubectl apply -n argo -f https://raw.githubusercontent.com/argoproj/argo/stable/manifests/install.yaml
-    - name: Debugging with tmate
-      uses: mxschmitt/action-tmate@v2
+#    - name: Debugging with tmate
+#      uses: mxschmitt/action-tmate@v2
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
