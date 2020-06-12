@@ -26,6 +26,14 @@ jobs:
       with:
         minikube-version: 1.11.0
         k8s-version: 1.18.3
+    - name: Testing
+      run: |
+        minikube config set vm-driver kvm2
+        minikube config set kubernetes-version=v1.18.3
+        minikube start
+        minikube update-context
+        kubectl cluster-info
+        kubectl get pods -n kube-system
     - name: Checking
       run: |
         echo $(kubectl get pods -n kube-system)
