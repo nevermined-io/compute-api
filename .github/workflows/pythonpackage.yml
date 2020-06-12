@@ -26,7 +26,7 @@ jobs:
       with:
         minikube-version: 1.4.0
         k8s-version: 1.15.1
-    - name: Testing
+    - name: Set up minikube
       run: |
         minikube config set vm-driver kvm2
         minikube config set kubernetes-version=v1.15.1
@@ -34,6 +34,8 @@ jobs:
         minikube update-context
         kubectl cluster-info
         kubectl get pods -n kube-system
+    - name: Set up argo
+      run: |
         curl -sLO https://github.com/argoproj/argo/releases/download/v2.8.1/argo-linux-amd64
         chmod +x argo-linux-amd64
         mv ./argo-linux-amd64 /usr/local/bin/argo
