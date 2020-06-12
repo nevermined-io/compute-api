@@ -24,7 +24,7 @@ jobs:
     - uses: actions/checkout@master
     - uses: opsgang/ga-setup-minikube@v0.1.1
       with:
-        minikube-version: v1.11.0
+        minikube-version: 1.11.0
         k8s-version: 1.18.3
     - name: Minikube (Single node Kubernetes) Action
       uses: opsgang/ga-setup-minikube@v0.1.1
