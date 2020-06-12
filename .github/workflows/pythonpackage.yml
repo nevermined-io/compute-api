@@ -28,7 +28,7 @@ jobs:
         k8s-version: 1.18.3
     - name: Set up argo
       run: |
-        echo $(minikube version)
+        echo $(ls -a)
         curl -sLO https://github.com/argoproj/argo/releases/download/v2.8.1/argo-linux-amd64
         chmod +x argo-linux-amd64
         sudo mv ./argo-linux-amd64 /usr/local/bin/argo
