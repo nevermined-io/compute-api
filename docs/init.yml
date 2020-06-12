@@ -58,7 +58,7 @@ parameters:
                                 "requirements": {
                                   "serverInstances": 1,
                                   "container": {
-                                    "image": "openjdk",
+                                    "image": "nevermined/configuration-pod",
                                     "tag": "14-jdk",
                                     "checksum": "sha256:cb57ecfa6ebbefd8ffc7f75c0f00e57a7fa739578a429b6f72a0df19315deadc"
                                   }
