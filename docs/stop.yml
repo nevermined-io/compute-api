@@ -5,4 +5,4 @@ tags:
 consumes:
   - application/json
 parameters:
-  - name: executionId
+  - name: execution_id
