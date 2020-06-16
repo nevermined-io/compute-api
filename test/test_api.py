@@ -1,20 +1,17 @@
 import json
 
-import pytest
-
 from nevermined_compute_api.constants import BaseURLs
 from test.conftest import json_dict
 
 
-@pytest.mark.skip(reason="Failing some times with actions")
 def test_operator(client):
     rv = client.get('/')
-    assert json.loads(rv.data.decode('utf-8'))['software'] == 'Operator service'
+    assert json.loads(rv.data.decode('utf-8'))['software'] == 'Nevermined Compute API'
 
 
 def test_workflow_creation(client):
     rv = client.post(BaseURLs.BASE_OPERATOR_URL + '/init',
-                     data=json_dict,
+                     data=json.dumps(json_dict),
                      content_type='application/json')
     assert rv.status_code == 200
     id = rv.data.decode()
