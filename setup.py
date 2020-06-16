@@ -13,7 +13,7 @@ with open('CHANGELOG.md') as history_file:
 
 install_requirements = [
     'coloredlogs',
-    'common-utils==0.2.8'
+    'common-utils==0.2.8',
     'Flask==1.0.2',
     'Flask-Cors==3.0.6',
     'flask-swagger==0.2.14',
