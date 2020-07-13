@@ -9,7 +9,7 @@ from argo.workflows.client import V1alpha1Api
 from common_utils_py.ddo.ddo import DDO
 from flask import Blueprint, jsonify, request
 from kubernetes.client.rest import ApiException
-from nevermined_compute_api.workflow_utils import create_templates, create_volume_claim_templates, create_arguments
+from nevermined_compute_api.workflow_utils import create_templates, create_volume_claim_templates, create_arguments, setup_keeper
 
 services = Blueprint('services', __name__)
 
@@ -28,6 +28,7 @@ group = config_parser.get('resources', 'group')  # str | The custom resource's g
 version = config_parser.get('resources', 'version')  # str | The custom resource's version
 namespace = config_parser.get('resources', 'namespace')  # str | The custom resource's namespace
 
+setup_keeper()
 
 @services.route('/init', methods=['POST'])
 def init_execution():
@@ -172,8 +173,11 @@ def create_execution(workflow):
     execution['spec'] = dict()
     execution['spec']['metadata'] = ddo.metadata
     execution['spec']['entrypoint'] = 'compute-workflow'
-    execution['spec']['arguments'] = create_arguments()
+    execution['spec']['arguments'] = create_arguments(ddo)
     execution['spec']['volumeClaimTemplates'] = create_volume_claim_templates()
     execution['spec']['templates'] = create_templates()
+    execution['spec']['volumes'] = []
+    execution['spec']['volumes'].append(
+        {'name': 'artifacts-volume', 'configMap': {'name': 'artifacts'}})
     return execution
 
