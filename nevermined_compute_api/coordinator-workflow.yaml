@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+status: {}
+kind: Workflow
+metadata:
+  generateName: nevermined-compute-
+spec:
+  entrypoint: start
+  templates:
+  - name: xain-fl
+    inputs:
+      parameters:
+        - name: config
+        - name: command
+    container:
+      name: 'xain-fl'
+      image: rmarques/xain-fl:v1
+      command: ["{{inputs.parameters.command}}"]
+      args: ["-c", "{{inputs.parameters.config}}"]
+
+  - name: start
+    dag:
+      tasks:
+        - name: coordinator
+          template: xain-fl
+          arguments:
+            parameters:
+            - name: command
+              value: "coordinator"
+            - name: config
+              value: "/bin/config-coordinator.toml"
+        - name: aggregator
+          template: xain-fl
+          arguments:
+            parameters:
+            - name: command
+              value: "aggregator"
+            - name: config
+              value: "/bin/config-aggregator.toml"
