@@ -22,7 +22,7 @@ install_requirements = [
     'kubernetes~=11.0',
     'requests>=2.21.0',
     'gunicorn==19.9.0',
-    'PyYAML==5.1',
+    'PyYAML==5.3',
     'pytz',
 ]
 
