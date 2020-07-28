@@ -1,7 +1,6 @@
 import pytest
 from nevermined_compute_api.run import app
-import json
-from urllib.request import urlopen
+from pathlib import Path
 
 app = app
 
@@ -10,6 +9,13 @@ app = app
 def client():
     client = app.test_client()
     yield client
+
+
+@pytest.fixture
+def coordinator_json():
+    path = Path(__file__).parent / "data/ddo.fl-coordinator-consumer.json"
+    with path.open() as f:
+        yield f.read()
 
 
 json_dict = """{
