@@ -22,10 +22,12 @@ def create_arguments(ddo):
     arguments['parameters'].append({'name': 'node', 'value': 'http://192.168.178.21:8545'})
     arguments['parameters'].append({'name': 'verbose', 'value': 'false'})
     arguments['parameters'].append({'name': 'workflow', 'value': ddo.asset_id})
-    arguments['parameters'].append(
-        {'name': 'did_input_1', 'value': workflow['stages'][0]['input'][0]['id']})
-    arguments['parameters'].append(
-        {'name': 'did_input_2', 'value': workflow['stages'][0]['input'][1]['id']})
+
+    # Inputs
+    for (i, input_) in enumerate(workflow['stages'][0]['input']):
+        arguments['parameters'].append(
+            {'name': f'did_input_{i + 1}', 'value': input_['id']})
+
     arguments['parameters'].append(
         {'name': 'transformation_did', 'value': workflow['stages'][0]['transformation']['id']})
     # arguments['parameters'].append({'name': 'metadata_url', 'value': workflow['stages'][0][

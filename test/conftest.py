@@ -22,6 +22,13 @@ def coordinator_json():
         yield f.read()
 
 
+@pytest.fixture
+def participant_json():
+    path = Path(__file__).parent / "data/ddo.fl-participant-workflow.json"
+    with path.open() as f:
+        yield f.read()
+
+
 workflow_ddo = json.loads(urlopen(
     "https://raw.githubusercontent.com/keyko-io/nevermined-docs/master/architecture/specs"
     "/examples/metadata/v0.1/ddo-example-workflow.json").read().decode(
