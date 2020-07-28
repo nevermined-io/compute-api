@@ -26,14 +26,14 @@ def client():
 
 @pytest.fixture
 def coordinator_json():
-    path = Path(__file__).parent / "data/ddo.fl-coordinator-consumer.json"
+    path = Path(__file__).parent / "resources/data/ddo.fl-coordinator-consumer.json"
     with path.open() as f:
         yield f.read()
 
 
 @pytest.fixture
 def participant_json():
-    path = Path(__file__).parent / "data/ddo.fl-participant-workflow.json"
+    path = Path(__file__).parent / "resources/data/ddo.fl-participant-workflow.json"
     with path.open() as f:
         yield f.read()
 
