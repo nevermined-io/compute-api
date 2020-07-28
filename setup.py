@@ -24,7 +24,7 @@ install_requirements = [
     'kubernetes~=11.0',
     'requests>=2.21.0',
     'gunicorn==19.9.0',
-    'PyYAML==5.1',
+    'PyYAML==5.3',
     'pytz',
     'web3==5.9.0'
 ]
@@ -75,4 +75,5 @@ setup(
     url='https://github.com/keyko-io/nevermined-compute-api',
     version='0.1.0',
     zip_safe=False,
+    package_data={'nevermined_compute_api': ['*.yaml']}
 )

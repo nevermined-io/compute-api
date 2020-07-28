@@ -1,3 +1,4 @@
+from pathlib import Path
 import logging
 from configparser import ConfigParser
 from os import path
@@ -36,7 +37,13 @@ def init_execution():
     Initialize the execution when someone call to the execute endpoint in brizo.
     swagger_from_file: docs/init.yml
     """
-    body = create_execution(request.json['workflow'])
+    workflow_type = request.json['workflow']['service'][0]['attributes']['main']['type']
+
+    if workflow_type == 'fl-coordinator':
+        body = create_coordinator_execution(request.json['workflow'])
+    else:
+        body = create_execution(request.json['workflow'])
+
     try:
         api_response = v1alpha1.create_namespaced_workflow(namespace, body)
         logging.info(api_response)
@@ -181,3 +188,41 @@ def create_execution(workflow):
         {'name': 'artifacts-volume', 'configMap': {'name': 'artifacts'}})
     return execution
 
+
+def create_coordinator_execution(workflow):
+    """Creates an argo execution workflow for the coordinator
+
+    Args:
+        workflow (dict): A dict containing the ddo for the workflow of type `fl-coordinator`
+
+    Returns:
+        dict: The argo execution workflow
+
+    """
+    coordinator_execution = get_coordinator_execution_template()
+
+    coordinator_execution['apiVersion'] = group + '/' + version
+    coordinator_execution['metadata']['generatedName'] = 'nevermined-compute-'
+    coordinator_execution['metadata']['namespace'] = namespace
+    coordinator_execution['spec']['metadata'] = workflow
+
+    container = workflow['service'][0]['attributes']['main'][
+        'workflow']['stages'][0]['requirements']['container']
+    coordinator_execution['spec']['templates'][0]['container']['image'] = \
+        f'{container["image"]}:{container["tag"]}'
+
+    return coordinator_execution
+
+
+def get_coordinator_execution_template():
+    """Returns the argo coordinator workflow template
+
+    Returns:
+        dict: argo coordinator workflow template
+
+    """
+    path = Path(__file__).parent / "coordinator-workflow.yaml"
+    with path.open() as f:
+        coordinator_execution_template = yaml.full_load(f)
+
+    return coordinator_execution_template

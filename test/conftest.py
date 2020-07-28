@@ -1,5 +1,6 @@
 import json
 from urllib.request import urlopen
+from pathlib import Path
 
 import pytest
 
@@ -12,6 +13,13 @@ app = app
 def client():
     client = app.test_client()
     yield client
+
+
+@pytest.fixture
+def coordinator_json():
+    path = Path(__file__).parent / "data/ddo.fl-coordinator-consumer.json"
+    with path.open() as f:
+        yield f.read()
 
 
 workflow_ddo = json.loads(urlopen(
