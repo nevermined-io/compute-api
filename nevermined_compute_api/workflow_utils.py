@@ -19,9 +19,9 @@ def create_arguments(ddo):
     arguments['parameters'].append(
         {'name': 'transformations', 'value': '/data/transformations_folder'})
     arguments['parameters'].append({'name': 'volume', 'value': '/data'})
-    arguments['parameters'].append({'name': 'node', 'value': 'http://192.168.178.21:8545'})
+    arguments['parameters'].append({'name': 'node', 'value': 'http://172.17.0.1:8545'})
     arguments['parameters'].append({'name': 'verbose', 'value': 'false'})
-    arguments['parameters'].append({'name': 'workflow', 'value': ddo.asset_id})
+    arguments['parameters'].append({'name': 'workflow', 'value': f'did:nv:{ddo.asset_id[2:]}'})
 
     # Inputs
     for (i, input_) in enumerate(workflow['stages'][0]['input']):
@@ -32,12 +32,12 @@ def create_arguments(ddo):
         {'name': 'transformation_did', 'value': workflow['stages'][0]['transformation']['id']})
     # arguments['parameters'].append({'name': 'metadata_url', 'value': workflow['stages'][0][
     # 'output']['metadataUrl']})
-    arguments['parameters'].append({'name': 'metadata_url', 'value': 'http://192.168.178.21:5000'})
-    arguments['parameters'].append({'name': 'gateway_url', 'value': 'http://192.168.178.21:8030'})
+    arguments['parameters'].append({'name': 'metadata_url', 'value': 'http://172.17.0.1:5000'})
+    arguments['parameters'].append({'name': 'gateway_url', 'value': 'http://172.17.0.1:8030'})
     # arguments['parameters'].append({'name': 'gateway_url', 'value': workflow['stages'][0][
     # 'output']['accessProxyUrl']})
     arguments['parameters'].append(
-        {'name': 'secret_store_url', 'value': 'http://192.168.178.21:12001'})
+        {'name': 'secret_store_url', 'value': 'http://172.17.0.1:12001'})
     # arguments['parameters'].append({'name': 'secret_store_url', 'value': workflow['stages'][0][
     # 'output']['secretStoreUrl']})
     return arguments
@@ -48,7 +48,7 @@ def create_volume_claim_templates():
     voloume_dict[0]['metadata'] = dict()
     voloume_dict[0]['metadata']['name'] = 'workdir'
     voloume_dict[0]['spec'] = dict()
-    voloume_dict[0]['spec']['accessModes'] = ["ReadWriteOnce"]
+    voloume_dict[0]['spec']['accessModes'] = ["ReadWriteMany"]
     voloume_dict[0]['spec']['resources'] = dict()
     voloume_dict[0]['spec']['resources']['requests'] = dict()
     voloume_dict[0]['spec']['resources']['requests']['storage'] = '2Gi'
@@ -72,19 +72,23 @@ def create_templates():
 def create_configuration_container():
     config_pod = dict()
     config_pod['name'] = 'configuratorPod'
-    config_pod['image'] = 'keykoio/nevermined-pod-config'
+    config_pod['image'] = 'keykoio/nevermined-pod-config-py'
+    config_pod['imagePullPolicy'] = 'IfNotPresent'
     config_pod['command'] = ['sh', '-c']
     # config_pod['args'] = ["tail -f /dev/null"]
-    config_pod['args'] = ["cp /artifacts/* /node_modules/@keyko-io/nevermined-contracts/artifacts/;\
+    config_pod['args'] = ["cp -rv /artifacts ./artifacts;\
+         ls -l; \
          mkdir $VOLUME/adminlogs/; \
-         node src/index.js \
+         pod-config \
          --workflow $WORKFLOW \
          --path $VOLUME \
          --credentials $CREDENTIALS \
          --password $PASSWORD \
          --node $NODE \
          --gateway-url $GATEWAY_URL \
-         --verbose 2>&1 | tee $VOLUME/adminlogs/configure.log"]
+         --metadata-url $METADATA_URL \
+         --secretstore-url $SECRET_STORE_URL; \
+         ls -l /data"]
     config_pod['env'] = []
     config_pod['env'].append(
         {'name': 'CREDENTIALS', 'value': '{{workflow.parameters.credentials}}'})
@@ -100,6 +104,10 @@ def create_configuration_container():
     config_pod['env'].append({'name': 'WORKFLOW', 'value': '{{workflow.parameters.workflow}}'})
     config_pod['env'].append(
         {'name': 'GATEWAY_URL', 'value': '{{workflow.parameters.gateway_url}}'})
+    config_pod['env'].append(
+        {'name': 'METADATA_URL', 'value': '{{workflow.parameters.metadata_url}}'})
+    config_pod['env'].append(
+        {'name': 'SECRET_STORE_URL', 'value': '{{workflow.parameters.secret_store_url}}'})
     config_pod['env'].append({'name': 'VERBOSE', 'value': '{{workflow.parameters.verbose}}'})
     config_pod['volumeMounts'] = []
     config_pod['volumeMounts'].append({'name': 'workdir', 'mountPath': '/data'})

@@ -69,7 +69,7 @@
     "service": [
       {
         "index": 0,
-        "serviceEndpoint": "http://localhost:5000/api/v1/aquarius/assets/ddo/{did}",
+        "serviceEndpoint": "http://172.17.0.1:5000/api/v1/metadata/assets/ddo/{did}",
         "type": "metadata",
         "attributes": {
           "main": {
