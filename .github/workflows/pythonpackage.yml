@@ -28,8 +28,8 @@ jobs:
         curl -sLO https://github.com/argoproj/argo/releases/download/v2.8.1/argo-linux-amd64
         chmod +x argo-linux-amd64
         sudo mv ./argo-linux-amd64 /usr/local/bin/argo
-        kubectl create namespace argo
-        kubectl apply -n argo -f https://raw.githubusercontent.com/argoproj/argo/stable/manifests/install.yaml
+        kubectl create namespace nevermined-compute
+        kubectl apply -n nevermined-compute -f https://raw.githubusercontent.com/argoproj/argo/stable/manifests/install.yaml
 #    - name: Debugging with tmate
 #      uses: mxschmitt/action-tmate@v2
     - name: Install dependencies
@@ -39,4 +39,4 @@ jobs:
     - name: Test with pytest
       run: |
         pip install pytest
-        pytest
+        pytest -v

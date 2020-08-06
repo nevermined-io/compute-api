@@ -1,14 +1,16 @@
 from pathlib import Path
 import logging
-import uuid
 from configparser import ConfigParser
 from os import path
+
 import kubernetes
 import yaml
 from argo.workflows import config
 from argo.workflows.client import V1alpha1Api
+from common_utils_py.ddo.ddo import DDO
 from flask import Blueprint, jsonify, request
 from kubernetes.client.rest import ApiException
+from nevermined_compute_api.workflow_utils import create_templates, create_volume_claim_templates, create_arguments, setup_keeper
 
 services = Blueprint('services', __name__)
 
@@ -26,6 +28,8 @@ configuration = config_parser.read('config.ini')
 group = config_parser.get('resources', 'group')  # str | The custom resource's group name
 version = config_parser.get('resources', 'version')  # str | The custom resource's version
 namespace = config_parser.get('resources', 'namespace')  # str | The custom resource's namespace
+
+setup_keeper()
 
 @services.route('/init', methods=['POST'])
 def init_execution():
@@ -164,6 +168,7 @@ def list_executions():
 
 
 def create_execution(workflow):
+    ddo = DDO(dictionary=workflow)
     execution = dict()
     execution['apiVersion'] = group + '/' + version
     execution['kind'] = 'Workflow'
@@ -173,16 +178,14 @@ def create_execution(workflow):
     execution['metadata']['generateName'] = 'nevermined-compute-'
     execution['metadata']['namespace'] = namespace
     execution['spec'] = dict()
-    execution['spec']['metadata'] = workflow
-    execution['spec']['entrypoint'] = 'whalesay'
-    execution['spec']['templates'] = [dict()]
-    # TODO fulfill with a loop for multiple templates and complex workflow.
-    execution['spec']['templates'][0]['name'] = 'whalesay'
-    execution['spec']['templates'][0]['container'] = dict()
-    execution['spec']['templates'][0]['container']['name'] = 'whalesay'
-    execution['spec']['templates'][0]['container']['image'] = 'docker/whalesay:latest'
-    execution['spec']['templates'][0]['container']['command'] = ['cowsay']
-    execution['spec']['templates'][0]['container']['args'] = ["hello world"]
+    execution['spec']['metadata'] = ddo.metadata
+    execution['spec']['entrypoint'] = 'compute-workflow'
+    execution['spec']['arguments'] = create_arguments(ddo)
+    execution['spec']['volumeClaimTemplates'] = create_volume_claim_templates()
+    execution['spec']['templates'] = create_templates()
+    execution['spec']['volumes'] = []
+    execution['spec']['volumes'].append(
+        {'name': 'artifacts-volume', 'configMap': {'name': 'artifacts'}})
     return execution
 
 
@@ -223,12 +226,3 @@ def get_coordinator_execution_template():
         coordinator_execution_template = yaml.full_load(f)
 
     return coordinator_execution_template
-
-
-# TODO Use the commons utils library to do this when we set up the project.
-def generate_new_id():
-    """
-    Generate a new id without prefix.
-    :return: Id, str
-    """
-    return uuid.uuid4().hex

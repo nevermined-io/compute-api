@@ -1,0 +1,156 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: wordcount-workflow
+spec:
+  entrypoint: compute-workflow
+  arguments:
+    parameters:
+    - name: credentials
+      value: fulanito
+    - name: password
+      value: xxx
+    - name: inputs
+      value: /data/input_folder
+    - name: transformations
+      value: /data/transformations_folder
+    - name: volume
+      value: /data
+    - name: node
+      value: keeper_url
+    - name: workflow
+      value: nombre_workflow
+    - name: did_input_1
+      value: did:nv:xxxxx
+    - name: did_input_2
+      value: did:nv:xxxxx
+    - name: transformation_did
+      value: did:nv:xxxxx
+    - name: aws_access_key_id
+      value: xxxxxxxx
+    - name: aws_secret_access_key
+      value: xxxxxx
+    # Actualizar los pods para que los nombres de las vlbes sean nevermined_xxx
+    - name: aquarius_url
+      value: aquarius:8080
+    - name: brizo_url
+      value: brizo:8080
+    - name: secret_store_url
+      value: secretstore:8080
+  volumeClaimTemplates:                 # define volume, same syntax as k8s Pod spec
+  - metadata:
+      name: workdir                     # name of volume claim
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 2Gi  # VOLUME_SIZE para leer de vlbe entorno
+          #storageClassName: gp2 # STORAGE_CLASS Dependerá de donde se despliegue, no es lo mismo aws que minikube que...
+          # Como asignar valores por defecto si las vbles de entorno no existen?
+          # o eso lo hacemos en el API al construir el workflow?
+  templates:
+  - name: compute-workflow
+    # Instead of just running a container
+    # This template has a sequence of steps
+    steps:
+    - - name: configurator
+        template: configuratorPod
+
+    - - name: transformation
+        template: wordcountPod
+
+    - - name: publishing
+        template: publishingPod
+  - name: configuratorPod
+    container:
+      image: pedrogp/ocean-pod-configuration:latest
+      command: [sh, -c]
+      args: |
+         node src/index.js \
+         --workflow "$WORKFLOW" \
+         --path "$VOLUME" \
+         --workflowid "$WORKFLOWID" \
+         --verbose 2>&1 | tee $VOLUME/adminlogs/configure.log
+      env:
+        - name: 'CREDENTIALS'
+          value:  '{{workflow.parameters.credentials}}'
+        - name: 'PASSWORD'
+          value:  '{{workflow.parameters.password}}'
+        - name: 'INPUTS'
+          value:  '{{workflow.parameters.inputs}}'
+        - name: 'TRANSFORMATIONS'
+          value:  '{{workflow.parameters.transformations}}'
+        - name: 'VOLUME'
+          value:  '{{workflow.parameters.volume}}'
+        - name: 'NODE'
+          value:  '{{workflow.parameters.node}}'
+        - name: 'WORKFLOW'
+          value:  '{{workflow.parameters.workflow}}'
+      volumeMounts:                     # same syntax as k8s Pod spec
+      - name: workdir
+        mountPath: /data
+  - name: wordcountPod
+    container:
+      image: xxx # EL container se especifica en el workflow del ddo
+      command: [sh, -c]
+      args: |
+         mkdir -p $VOLUME/outputs $VOLUME/logs
+         java \
+         -jar $VOLUME/transformations/$TRANSFORMATION_DID/wordCount.jar\
+         --input1 $VOLUME/inputs/$DID_INPUT1/\
+         --input2 $VOLUME/inputs/$DID_INPUT2/\
+         --output $VOLUME/outputs/\
+         --logs $VOLUME/logs/ | tee $VOLUME/logs/algorithm.log
+       env:
+        - name: 'VOLUME'
+          value:  '{{workflow.parameters.volume}}'
+        - name: 'DID_INPUT1'
+          value:  '{{workflow.parameters.did_input_1}}'
+        - name: 'DID_INPUT2'
+          value:  '{{workflow.parameters.did_input_2}}'
+        - name: 'TRANSFORMATION_DID'
+          value:  '{{workflow.parameters.transformation_did}}'
+      volumeMounts:
+      - name: workdir
+        mountPath: /data
+  - name: publishingPod
+    container:
+      image: pedrogp/ocean-pod-publishing:latest
+      command: [sh, -c]
+      args: |
+         mkdir -p $VOLUME/outputs $VOLUME/logs
+         node src/index.js \
+         --workflow "$WORKFLOW" \
+         --node "$NODE" \
+         --credentials "$CREDENTIALS" \
+         --password "$PASSWORD" \
+         --path "$VOLUME" \
+         --verbose | tee $VOLUME/logs/publish.log
+      env:
+        - name: 'CREDENTIALS'
+          value:  '{{workflow.parameters.credentials}}'
+        - name: 'PASSWORD'
+          value:  '{{workflow.parameters.password}}'
+        - name: 'INPUTS'
+          value:  '{{workflow.parameters.inputs}}'
+        - name: 'TRANSFORMATIONS'
+          value:  '{{workflow.parameters.transformations}}'
+        - name: 'VOLUME'
+          value:  '{{workflow.parameters.volume}}'
+        - name: 'NODE'
+          value:  '{{workflow.parameters.node}}'
+        - name: 'WORKFLOW'
+          value:  '{{workflow.parameters.workflow}}'
+        - name: 'AWS_ACCESS_KEY_ID'
+          value:  '{{workflow.parameters.aws_access_key_id}}'
+        - name: 'AWS_SECRET_ACCESS_KEY'
+          value:  '{{workflow.parameters.aws_secret_access_key}}'
+        - name: 'AQUARIUS_URL'
+          value:  '{{workflow.parameters.aquarius_url}}'
+        - name: 'BRIZO_URL'
+          value:  '{{workflow.parameters.brizo_url}}'
+        - name: 'SECRET_STORE_URL'
+          value:  '{{workflow.parameters.secret_store_url}}'
+      volumeMounts:                     # same syntax as k8s Pod spec
+      - name: workdir
+        mountPath: /data
