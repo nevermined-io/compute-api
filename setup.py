@@ -26,7 +26,8 @@ install_requirements = [
     'gunicorn==19.9.0',
     'PyYAML==5.3',
     'pytz',
-    'web3==5.9.0'
+    'web3==5.9.0',
+    'nevermined-sdk-py==0.3.0',
 ]
 
 setup_requirements = ['pytest-runner',]
@@ -42,7 +43,8 @@ test_requirements = [
     'coverage',
     'mccabe',
     'pylint',
-    'pytest'
+    'pytest',
+    'pytest-mock==3.2.0',
 ]
 
 setup(
