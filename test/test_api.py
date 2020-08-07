@@ -9,7 +9,7 @@ def test_operator(client):
     assert json.loads(rv.data.decode('utf-8'))['software'] == 'Nevermined Compute API'
 
 
-def test_workflow_creation(client, transformation_mock):
+def test_workflow_creation(client, nevermined_mock):
     rv = client.post(BaseURLs.BASE_OPERATOR_URL + '/init',
                      data=json.dumps(json_dict),
                      content_type='application/json')
@@ -45,7 +45,7 @@ def test_coordinator_workflow(client, coordinator_json):
                   content_type='application/json')
 
 
-def test_participant_workflow(client, participant_json, transformation_mock):
+def test_participant_workflow(client, participant_json, nevermined_mock):
     rv = client.post(BaseURLs.BASE_OPERATOR_URL + '/init',
                      data=participant_json,
                      content_type='application/json')

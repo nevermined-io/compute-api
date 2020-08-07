@@ -40,13 +40,19 @@ def participant_json():
 
 
 @pytest.fixture
-def transformation_mock(mocker):
+def nevermined_mock(mocker):
     path = Path(__file__).parent / "resources/data/ddo.algorithm.json"
     algorithm_ddo = json.loads(path.read_text())
 
+    # mock nevermined
+    mocked_nevermined = mocker.patch("nevermined_sdk_py.nevermined.nevermined.Nevermined")
+
+    # mock assets.resolve
     mocked_resolve = mocker.patch("nevermined_sdk_py.nevermined.assets.Assets.resolve")
     mocked_resolve.return_vaule = DDO(dictionary=algorithm_ddo)
-    return mocked_resolve
+
+    mocked_nevermined.assets.resolve = mocked_resolve
+    return mocked_nevermined
 
 
 workflow_ddo = json.loads(urlopen(
