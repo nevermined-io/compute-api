@@ -45,7 +45,7 @@ def nevermined_mock(mocker):
     algorithm_ddo = json.loads(path.read_text())
 
     # mock nevermined
-    mocked_nevermined = mocker.patch("nevermined_sdk_py.nevermined.nevermined.Nevermined")
+    mocked_nevermined = mocker.patch("nevermined_compute_api.workflow_utils.Nevermined")
 
     # mock assets.resolve
     mocked_resolve = mocker.patch("nevermined_sdk_py.nevermined.assets.Assets.resolve")
