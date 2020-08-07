@@ -43,7 +43,8 @@ test_requirements = [
     'coverage',
     'mccabe',
     'pylint',
-    'pytest'
+    'pytest',
+    'pytest-mock==3.2.0',
 ]
 
 setup(
