@@ -182,7 +182,7 @@ def create_execution(workflow):
     execution['spec']['entrypoint'] = 'compute-workflow'
     execution['spec']['arguments'] = create_arguments(ddo)
     execution['spec']['volumeClaimTemplates'] = create_volume_claim_templates()
-    execution['spec']['templates'] = create_templates()
+    execution['spec']['templates'] = create_templates(ddo)
     execution['spec']['volumes'] = []
     execution['spec']['volumes'].append(
         {'name': 'artifacts-volume', 'configMap': {'name': 'artifacts'}})

@@ -1,6 +1,7 @@
 import os
 
 from contracts_lib_py.utils import get_account
+from nevermined_sdk_py import Nevermined, Config
 
 
 def create_arguments(ddo):
@@ -55,16 +56,16 @@ def create_volume_claim_templates():
     return voloume_dict
 
 
-def create_templates():
+def create_templates(ddo):
     templates = [dict()]
     templates[0]['name'] = 'compute-workflow'
     templates[0]['steps'] = []
     templates[0]['steps'].append([{'name': 'configurator', 'template': 'configuratorPod'}])
-    # templates[0]['steps'].append([{'name': 'transformation', 'template': 'wordcountPod'}])
+    templates[0]['steps'].append([{'name': 'transformation', 'template': 'transformationPod'}])
     # templates[0]['steps'].append([{'name': 'publishing', 'template': 'publishingPod'}])
     # templates.append({'name': 'configuratorPod', 'container': create_hello_container()})
     templates.append({'name': 'configuratorPod', 'container': create_configuration_container()})
-    # templates.append({'name': 'wordcountPod', 'container': create_execute_container('wordcount')})
+    templates.append({'name': 'transformationPod', 'container': create_execute_container(ddo)})
     # templates.append({'name': 'publishingPod', 'container': create_publishing_container()})
     return templates
 
@@ -88,16 +89,12 @@ def create_configuration_container():
          --gateway-url $GATEWAY_URL \
          --metadata-url $METADATA_URL \
          --secretstore-url $SECRET_STORE_URL; \
-         ls -l /data"]
+         ls -lR /data"]
     config_pod['env'] = []
     config_pod['env'].append(
         {'name': 'CREDENTIALS', 'value': '{{workflow.parameters.credentials}}'})
     config_pod['env'].append(
         {'name': 'PASSWORD', 'value': '{{workflow.parameters.password}}'})
-    config_pod['env'].append(
-        {'name': 'INPUTS', 'value': '{{workflow.parameters.inputs}}'})
-    config_pod['env'].append(
-        {'name': 'TRANSFORMATIONS', 'value': '{{workflow.parameters.transformations}}'})
     config_pod['env'].append(
         {'name': 'VOLUME', 'value': '{{workflow.parameters.volume}}'})
     config_pod['env'].append({'name': 'NODE', 'value': '{{workflow.parameters.node}}'})
@@ -146,32 +143,52 @@ def create_hello_container():
     return config_pod
 
 
-def create_execute_container(workflow_image):
-    config_pod = dict()
-    config_pod['name'] = workflow_image
-    config_pod['image'] = workflow_image
-    config_pod['command'] = ["sh", "-c"]
-    config_pod['args'] = 'ls /'
-    # config_pod['args'] = """|
-    #      mkdir -p $VOLUME/outputs $VOLUME/logs
-    #      java \
-    #      -jar $VOLUME/transformations/$TRANSFORMATION_DID/wordCount.jar\
-    #      --input1 $VOLUME/inputs/$DID_INPUT1/\
-    #      --input2 $VOLUME/inputs/$DID_INPUT2/\
-    #      --output $VOLUME/outputs/\
-    #      --logs $VOLUME/logs/ | tee $VOLUME/logs/algorithm.log"""
-    config_pod['env'] = []
-    config_pod['env'].append(
+def create_execute_container(ddo):
+    # setup nevermined
+    options = {
+        "resources": {
+            "metadata.url": "http://172.17.0.1:5000",
+        }
+    }
+    config = Config(options_dict=options)
+    nevermined = Nevermined(config)
+    workflow = ddo.metadata["main"]["workflow"]
+
+    # TODO: Currently this only supports one stage
+    transformation_did = workflow["stages"][0]["transformation"]["id"]
+    transformation_ddo = nevermined.assets.resolve(transformation_did)
+    transformation_metadata = transformation_ddo.get_service("metadata")
+
+    # get args and container
+    args = transformation_metadata.main["algorithm"]["entrypoint"]
+    image = transformation_metadata.main["algorithm"]["requirements"]["container"]["image"]
+    tag = transformation_metadata.main["algorithm"]["requirements"]["container"]["tag"]
+
+    transformation_pod = dict()
+    transformation_pod['name'] = "transformationPod"
+    transformation_pod['image'] = f"{image}:{tag}"
+    transformation_pod['command'] = ["sh", "-cx"]
+    transformation_pod['args'] = [f'cd $NEVERMINED_TRANSFORMATIONS_PATH/*/; \
+                                  {args}; \
+                                   ls -lR /data/outputs/']
+    transformation_pod['env'] = []
+    transformation_pod['env'].append(
         {'name': 'VOLUME', 'value': '{{workflow.parameters.volume}}'})
-    config_pod['env'].append(
+    transformation_pod['env'].append(
         {'name': 'DID_INPUT1', 'value': '{{workflow.parameters.did_input_1}}'})
-    config_pod['env'].append(
+    transformation_pod['env'].append(
         {'name': 'DID_INPUT2', 'value': '{{workflow.parameters.did_input_2}}'})
-    config_pod['env'].append(
+    transformation_pod['env'].append(
         {'name': 'TRANSFORMATION_DID', 'value': '{{workflow.parameters.transformation_did}}'})
-    config_pod['volumeMounts'] = []
-    config_pod['volumeMounts'].append({'name': 'workdir', 'mountPath': '/data'})
-    return config_pod
+    transformation_pod['env'].append(
+        {'name': 'NEVERMINED_INPUTS_PATH', 'value': '{{workflow.parameters.volume}}/inputs'})
+    transformation_pod['env'].append(
+        {'name': 'NEVERMINED_OUTPUTS_PATH', 'value': '{{workflow.parameters.volume}}/outputs'})
+    transformation_pod['env'].append(
+        {'name': 'NEVERMINED_TRANSFORMATIONS_PATH', 'value': '{{workflow.parameters.volume}}/transformations'})
+    transformation_pod['volumeMounts'] = []
+    transformation_pod['volumeMounts'].append({'name': 'workdir', 'mountPath': '/data'})
+    return transformation_pod
 
 
 def create_publishing_container():
