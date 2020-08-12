@@ -62,11 +62,11 @@ def create_templates(ddo):
     templates[0]['steps'] = []
     templates[0]['steps'].append([{'name': 'configurator', 'template': 'configuratorPod'}])
     templates[0]['steps'].append([{'name': 'transformation', 'template': 'transformationPod'}])
-    # templates[0]['steps'].append([{'name': 'publishing', 'template': 'publishingPod'}])
+    templates[0]['steps'].append([{'name': 'publishing', 'template': 'publishingPod'}])
     # templates.append({'name': 'configuratorPod', 'container': create_hello_container()})
     templates.append({'name': 'configuratorPod', 'container': create_configuration_container()})
     templates.append({'name': 'transformationPod', 'container': create_execute_container(ddo)})
-    # templates.append({'name': 'publishingPod', 'container': create_publishing_container()})
+    templates.append({'name': 'publishingPod', 'container': create_publishing_container()})
     return templates
 
 
@@ -75,7 +75,7 @@ def create_configuration_container():
     config_pod['name'] = 'configuratorPod'
     config_pod['image'] = 'keykoio/nevermined-pod-config-py'
     config_pod['imagePullPolicy'] = 'IfNotPresent'
-    config_pod['command'] = ['sh', '-c']
+    config_pod['command'] = ['sh', '-cxe']
     # config_pod['args'] = ["tail -f /dev/null"]
     config_pod['args'] = ["cp -rv /artifacts ./artifacts;\
          ls -l; \
@@ -167,7 +167,7 @@ def create_execute_container(ddo):
     transformation_pod = dict()
     transformation_pod['name'] = "transformationPod"
     transformation_pod['image'] = f"{image}:{tag}"
-    transformation_pod['command'] = ["sh", "-cx"]
+    transformation_pod['command'] = ["sh", "-cxe"]
     transformation_pod['args'] = [f'cd $NEVERMINED_TRANSFORMATIONS_PATH/*/; \
                                   {args}; \
                                    ls -lR /data/outputs/']
@@ -194,18 +194,22 @@ def create_execute_container(ddo):
 def create_publishing_container():
     config_pod = dict()
     config_pod['name'] = 'publishingPod'
-    config_pod['image'] = 'keykoio/nevermined-pod-publishing:latest'
-    config_pod['command'] = ["sh", "-c"]
+    config_pod['image'] = 'keykoio/nevermined-pod-publishing-py:latest'
+    config_pod['imagePullPolicy'] = 'IfNotPresent'
+    config_pod['command'] = ["sh", "-cxe"]
     config_pod['args'] = 'ls /'
-    # config_pod['args'] = """|
-    #      mkdir -p $VOLUME/outputs $VOLUME/logs
-    #      node src/index.js \
-    #      --workflow "$WORKFLOW" \
-    #      --node "$NODE" \
-    #      --credentials "$CREDENTIALS" \
-    #      --password "$PASSWORD" \
-    #      --path "$VOLUME" \
-    #      --verbose | tee $VOLUME/logs/publish.log"""
+    config_pod['args'] = ["cp -rv /artifacts ./artifacts;\
+         ls -l; \
+         pod-publishing \
+         --workflow $WORKFLOW \
+         --path $VOLUME \
+         --credentials $CREDENTIALS \
+         --password $PASSWORD \
+         --node $NODE \
+         --gateway-url $GATEWAY_URL \
+         --metadata-url $METADATA_URL \
+         --secretstore-url $SECRET_STORE_URL; \
+         ls -lR /data"]
     config_pod['env'] = []
     config_pod['env'].append(
         {'name': 'CREDENTIALS', 'value': '{{workflow.parameters.credentials}}'})
@@ -221,10 +225,6 @@ def create_publishing_container():
     config_pod['env'].append(
         {'name': 'WORKFLOW', 'value': '{{workflow.parameters.workflow}}'})
     config_pod['env'].append(
-        {'name': 'AWS_ACCESS_KEY_ID', 'value': '{{workflow.parameters.aws_access_key_id}}'})
-    config_pod['env'].append(
-        {'name': 'AWS_SECRET_ACCESS_KEY', 'value': '{{workflow.parameters.aws_secret_access_key}}'})
-    config_pod['env'].append(
         {'name': 'METADATA_URL', 'value': '{{workflow.parameters.metadata_url}}'})
     config_pod['env'].append(
         {'name': 'GATEWAY_URL', 'value': '{{workflow.parameters.gateway_url}}'})
@@ -232,6 +232,7 @@ def create_publishing_container():
         {'name': 'SECRET_STORE_URL', 'value': '{{workflow.parameters.secret_store_url}}'})
     config_pod['volumeMounts'] = []
     config_pod['volumeMounts'].append({'name': 'workdir', 'mountPath': '/data'})
+    config_pod['volumeMounts'].append({'name': 'artifacts-volume', 'mountPath': '/artifacts'})
     return config_pod
 
 
