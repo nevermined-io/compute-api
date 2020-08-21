@@ -4,6 +4,7 @@ kind: Workflow
 metadata:
   generateName: nevermined-compute-
 spec:
+  hostNetwork: true
   entrypoint: start
   templates:
   - name: xain-fl
@@ -13,7 +14,8 @@ spec:
         - name: command
     container:
       name: 'xain-fl'
-      image: rmarques/xain-fl:v1
+      image: keykoio/xain-fl:latest
+      imagePullPolicy: IfNotPresent
       command: ["{{inputs.parameters.command}}"]
       args: ["-c", "{{inputs.parameters.config}}"]
 

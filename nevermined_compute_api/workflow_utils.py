@@ -24,11 +24,6 @@ def create_arguments(ddo):
     arguments['parameters'].append({'name': 'verbose', 'value': 'false'})
     arguments['parameters'].append({'name': 'workflow', 'value': f'did:nv:{ddo.asset_id[2:]}'})
 
-    # Inputs
-    for (i, input_) in enumerate(workflow['stages'][0]['input']):
-        arguments['parameters'].append(
-            {'name': f'did_input_{i + 1}', 'value': input_['id']})
-
     arguments['parameters'].append(
         {'name': 'transformation_did', 'value': workflow['stages'][0]['transformation']['id']})
     # arguments['parameters'].append({'name': 'metadata_url', 'value': workflow['stages'][0][
@@ -167,6 +162,7 @@ def create_execute_container(ddo):
     transformation_pod = dict()
     transformation_pod['name'] = "transformationPod"
     transformation_pod['image'] = f"{image}:{tag}"
+    transformation_pod['imagePullPolicy'] = 'IfNotPresent'
     transformation_pod['command'] = ["sh", "-cxe"]
     transformation_pod['args'] = [f'cd $NEVERMINED_TRANSFORMATIONS_PATH/*/; \
                                   {args}; \
@@ -174,10 +170,6 @@ def create_execute_container(ddo):
     transformation_pod['env'] = []
     transformation_pod['env'].append(
         {'name': 'VOLUME', 'value': '{{workflow.parameters.volume}}'})
-    transformation_pod['env'].append(
-        {'name': 'DID_INPUT1', 'value': '{{workflow.parameters.did_input_1}}'})
-    transformation_pod['env'].append(
-        {'name': 'DID_INPUT2', 'value': '{{workflow.parameters.did_input_2}}'})
     transformation_pod['env'].append(
         {'name': 'TRANSFORMATION_DID', 'value': '{{workflow.parameters.transformation_did}}'})
     transformation_pod['env'].append(

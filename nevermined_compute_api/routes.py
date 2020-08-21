@@ -206,10 +206,10 @@ def create_coordinator_execution(workflow):
     coordinator_execution['metadata']['namespace'] = namespace
     coordinator_execution['spec']['metadata'] = workflow
 
-    container = workflow['service'][0]['attributes']['main'][
-        'workflow']['stages'][0]['requirements']['container']
-    coordinator_execution['spec']['templates'][0]['container']['image'] = \
-        f'{container["image"]}:{container["tag"]}'
+    # container = workflow['service'][0]['attributes']['main'][
+    #     'workflow']['stages'][0]['requirements']['container']
+    # coordinator_execution['spec']['templates'][0]['container']['image'] = \
+    #     f'{container["image"]}:{container["tag"]}'
 
     return coordinator_execution
 
@@ -223,6 +223,6 @@ def get_coordinator_execution_template():
     """
     path = Path(__file__).parent / "coordinator-workflow.yaml"
     with path.open() as f:
-        coordinator_execution_template = yaml.full_load(f)
+        coordinator_execution_template = yaml.safe_load(f)
 
     return coordinator_execution_template
