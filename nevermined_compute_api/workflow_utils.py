@@ -1,7 +1,9 @@
 import os
+from pathlib import Path
 
 from contracts_lib_py.utils import get_account
 from nevermined_sdk_py import Nevermined, Config
+import yaml
 
 
 def create_arguments(ddo):
@@ -24,13 +26,6 @@ def create_arguments(ddo):
     arguments['parameters'].append({'name': 'verbose', 'value': 'false'})
     arguments['parameters'].append({'name': 'workflow', 'value': f'did:nv:{ddo.asset_id[2:]}'})
 
-    # Inputs
-    for (i, input_) in enumerate(workflow['stages'][0]['input']):
-        arguments['parameters'].append(
-            {'name': f'did_input_{i + 1}', 'value': input_['id']})
-
-    arguments['parameters'].append(
-        {'name': 'transformation_did', 'value': workflow['stages'][0]['transformation']['id']})
     # arguments['parameters'].append({'name': 'metadata_url', 'value': workflow['stages'][0][
     # 'output']['metadataUrl']})
     arguments['parameters'].append({'name': 'metadata_url', 'value': 'http://172.17.0.1:5000'})
@@ -59,13 +54,22 @@ def create_volume_claim_templates():
 def create_templates(ddo):
     templates = [dict()]
     templates[0]['name'] = 'compute-workflow'
-    templates[0]['steps'] = []
-    templates[0]['steps'].append([{'name': 'configurator', 'template': 'configuratorPod'}])
-    templates[0]['steps'].append([{'name': 'transformation', 'template': 'transformationPod'}])
-    templates[0]['steps'].append([{'name': 'publishing', 'template': 'publishingPod'}])
-    # templates.append({'name': 'configuratorPod', 'container': create_hello_container()})
+    templates[0]['dag'] = dict()
+    templates[0]['dag']['tasks'] = []
+    templates[0]['dag']['tasks'].append({'name': 'configurator', 'template': 'configuratorPod'})
+
+    if ddo.metadata["main"]["type"] == "fl-coordinator":
+        d = get_coordinator_execution_template()
+        templates[0]['dag']['tasks'] += d["templates"][1]["dag"]["tasks"]
+        templates[0]['dag']['tasks'].append({'name': 'publishing', 'template': 'publishingPod', 'dependencies': ['coordinator', 'aggregator']})
+    else:
+        templates[0]['dag']['tasks'].append({'name': 'transformation', 'template': 'transformationPod', 'dependencies': ['configurator']})
+        templates[0]['dag']['tasks'].append({'name': 'publishing', 'template': 'publishingPod', 'dependencies': ['transformation']})
     templates.append({'name': 'configuratorPod', 'container': create_configuration_container()})
-    templates.append({'name': 'transformationPod', 'container': create_execute_container(ddo)})
+    if ddo.metadata["main"]["type"] == "fl-coordinator":
+        templates.append(create_execute_coordinator())
+    else:
+        templates.append({'name': 'transformationPod', 'container': create_execute_container(ddo)})
     templates.append({'name': 'publishingPod', 'container': create_publishing_container()})
     return templates
 
@@ -112,37 +116,6 @@ def create_configuration_container():
     return config_pod
 
 
-def create_hello_container():
-    config_pod = dict()
-    config_pod['name'] = 'configuratorPod'
-    config_pod['image'] = 'docker/whalesay:latest'
-    config_pod['command'] = ['cowsay']
-    config_pod['args'] = ['whalesay']
-    # config_pod['args'] = """|
-    #      node src/index.js \
-    #      --workflow "$WORKFLOW" \
-    #      --path "$VOLUME" \
-    #      --workflowid "$WORKFLOWID" \
-    #      --verbose 2>&1 | tee $VOLUME/adminlogs/configure.log"""
-    config_pod['env'] = []
-    config_pod['env'].append(
-        {'name': 'CREDENTIALS', 'value': '{{workflow.parameters.credentials}}'})
-    config_pod['env'].append(
-        {'name': 'PASSWORD', 'value': '{{workflow.parameters.password}}'})
-    config_pod['env'].append(
-        {'name': 'INPUTS', 'value': '{{workflow.parameters.inputs}}'})
-    config_pod['env'].append(
-        {'name': 'TRANSFORMATIONS', 'value': '{{workflow.parameters.transformations}}'})
-    config_pod['env'].append(
-        {'name': 'VOLUME', 'value': '{{workflow.parameters.volume}}'})
-    config_pod['env'].append({'name': 'NODE', 'value': '{{workflow.parameters.node}}'})
-    config_pod['env'].append(
-        {'name': 'WORKFLOW', 'value': '{{workflow.parameters.workflow}}'})
-    config_pod['volumeMounts'] = []
-    config_pod['volumeMounts'].append({'name': 'workdir', 'mountPath': '/data'})
-    return config_pod
-
-
 def create_execute_container(ddo):
     # setup nevermined
     options = {
@@ -167,6 +140,7 @@ def create_execute_container(ddo):
     transformation_pod = dict()
     transformation_pod['name'] = "transformationPod"
     transformation_pod['image'] = f"{image}:{tag}"
+    transformation_pod['imagePullPolicy'] = 'IfNotPresent'
     transformation_pod['command'] = ["sh", "-cxe"]
     transformation_pod['args'] = [f'cd $NEVERMINED_TRANSFORMATIONS_PATH/*/; \
                                   {args}; \
@@ -175,12 +149,6 @@ def create_execute_container(ddo):
     transformation_pod['env'].append(
         {'name': 'VOLUME', 'value': '{{workflow.parameters.volume}}'})
     transformation_pod['env'].append(
-        {'name': 'DID_INPUT1', 'value': '{{workflow.parameters.did_input_1}}'})
-    transformation_pod['env'].append(
-        {'name': 'DID_INPUT2', 'value': '{{workflow.parameters.did_input_2}}'})
-    transformation_pod['env'].append(
-        {'name': 'TRANSFORMATION_DID', 'value': '{{workflow.parameters.transformation_did}}'})
-    transformation_pod['env'].append(
         {'name': 'NEVERMINED_INPUTS_PATH', 'value': '{{workflow.parameters.volume}}/inputs'})
     transformation_pod['env'].append(
         {'name': 'NEVERMINED_OUTPUTS_PATH', 'value': '{{workflow.parameters.volume}}/outputs'})
@@ -188,6 +156,24 @@ def create_execute_container(ddo):
         {'name': 'NEVERMINED_TRANSFORMATIONS_PATH', 'value': '{{workflow.parameters.volume}}/transformations'})
     transformation_pod['volumeMounts'] = []
     transformation_pod['volumeMounts'].append({'name': 'workdir', 'mountPath': '/data'})
+    return transformation_pod
+
+
+def create_execute_coordinator():
+    coordinator_execution = get_coordinator_execution_template()
+
+    transformation_pod = coordinator_execution["templates"][0]
+    transformation_pod["container"]['env'] = []
+    transformation_pod["container"]['env'].append(
+        {'name': 'VOLUME', 'value': '{{workflow.parameters.volume}}'})
+    transformation_pod["container"]['env'].append(
+        {'name': 'NEVERMINED_INPUTS_PATH', 'value': '{{workflow.parameters.volume}}/inputs'})
+    transformation_pod["container"]['env'].append(
+        {'name': 'NEVERMINED_OUTPUTS_PATH', 'value': '{{workflow.parameters.volume}}/outputs'})
+    transformation_pod["container"]['env'].append(
+        {'name': 'NEVERMINED_TRANSFORMATIONS_PATH', 'value': '{{workflow.parameters.volume}}/transformations'})
+    transformation_pod["container"]['volumeMounts'] = []
+    transformation_pod["container"]['volumeMounts'].append({'name': 'workdir', 'mountPath': '/data'})
     return transformation_pod
 
 
@@ -264,3 +250,17 @@ def init_account_envvars():
     os.environ['PARITY_KEYFILE'] = os.getenv('PROVIDER_KEYFILE', '')
     os.environ['PSK-RSA_PRIVKEY_FILE'] = os.getenv('RSA_PRIVKEY_FILE', '')
     os.environ['PSK-RSA_PUBKEY_FILE'] = os.getenv('RSA_PUBKEY_FILE', '')
+
+
+def get_coordinator_execution_template():
+    """Returns the argo coordinator workflow template
+
+    Returns:
+        dict: argo coordinator workflow template
+
+    """
+    path = Path(__file__).parent / "coordinator-workflow.yaml"
+    with path.open() as f:
+        coordinator_execution_template = yaml.safe_load(f)
+
+    return coordinator_execution_template
