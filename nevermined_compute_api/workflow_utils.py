@@ -2,9 +2,30 @@ import os
 from pathlib import Path
 
 from contracts_lib_py.utils import get_account
+from common_utils_py.ddo.ddo import DDO
 from nevermined_sdk_py import Nevermined, Config
 import yaml
+from configparser import ConfigParser
 
+config_parser = ConfigParser()
+configuration = config_parser.read('config.ini')
+group = config_parser.get('resources', 'group')  # str | The custom resource's group name
+version = config_parser.get('resources', 'version')  # str | The custom resource's version
+namespace = config_parser.get('resources', 'namespace')  # str | The custom resource's namespace
+
+
+def create_execution(workflow):
+    ddo = DDO(dictionary=workflow)
+
+    if ddo.metadata["main"]["type"] == "fl-coordinator":
+        workflow_template = get_workflow_template("workflow-fl.yaml")
+    else:
+        workflow_template = get_workflow_template("workflow-compute.yaml")
+
+    workflow_template['apiVersion'] = group + '/' + version
+    workflow_template['metadata']['namespace'] = namespace
+    workflow_template['spec']['arguments'] = create_arguments(ddo)
+    return workflow_template
 
 def create_arguments(ddo):
     workflow = ddo.metadata['main']['workflow']
@@ -252,15 +273,18 @@ def init_account_envvars():
     os.environ['PSK-RSA_PUBKEY_FILE'] = os.getenv('RSA_PUBKEY_FILE', '')
 
 
-def get_coordinator_execution_template():
-    """Returns the argo coordinator workflow template
+def get_workflow_template(name):
+    """Returns a argo workflow
+
+    Args:
+        name (str): The name of the template
 
     Returns:
         dict: argo coordinator workflow template
 
     """
-    path = Path(__file__).parent / "coordinator-workflow.yaml"
+    path = Path(__file__).parent / name
     with path.open() as f:
-        coordinator_execution_template = yaml.safe_load(f)
+        workflow_template = yaml.safe_load(f)
 
-    return coordinator_execution_template
+    return workflow_template

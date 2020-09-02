@@ -1,0 +1,169 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: nevermined-compute-
+  namespace: nevermined-compute
+spec:
+  entrypoint: compute-workflow
+  arguments:
+    parameters:
+    - name: credentials
+      value:
+    - name: password
+      value:
+    - name: volume
+      value: /data
+    - name: node
+      value:
+    - name: verbose
+      value:
+    - name: workflow
+      value:
+    - name: metadata_url
+      value: http://172.17.0.1:5000
+    - name: gateway_url
+      value: http://172.17.0.1:8030
+    - name: secret_store_url
+      value: http://172.17.0.1:12001
+  dnsPolicy: ClusterFirstWithHostNet
+  hostNetwork: true
+  metadata:
+
+  templates:
+  - name: compute-workflow
+    dag:
+      tasks:
+      - name: configurator
+        template: configuratorPod
+
+      - name: transformation
+        template: transformationPod
+        dependencies:
+        - configurator
+
+      - name: publishing
+        template: publishingPod
+        dependencies:
+        - transformation
+
+  - name: configuratorPod
+    container:
+      args:
+      - cp -rv /artifacts ./artifacts;         ls -l;          mkdir $VOLUME/adminlogs/;          pod-config          --workflow
+        $WORKFLOW          --path $VOLUME          --credentials $CREDENTIALS          --password
+        $PASSWORD          --node $NODE          --gateway-url $GATEWAY_URL          --metadata-url
+        $METADATA_URL          --secretstore-url $SECRET_STORE_URL;          ls -lR
+        /data
+      command:
+      - sh
+      - -cxe
+      env:
+      - name: CREDENTIALS
+        value: '{{workflow.parameters.credentials}}'
+      - name: PASSWORD
+        value: '{{workflow.parameters.password}}'
+      - name: VOLUME
+        value: '{{workflow.parameters.volume}}'
+      - name: NODE
+        value: '{{workflow.parameters.node}}'
+      - name: WORKFLOW
+        value: '{{workflow.parameters.workflow}}'
+      - name: GATEWAY_URL
+        value: '{{workflow.parameters.gateway_url}}'
+      - name: METADATA_URL
+        value: '{{workflow.parameters.metadata_url}}'
+      - name: SECRET_STORE_URL
+        value: '{{workflow.parameters.secret_store_url}}'
+      - name: VERBOSE
+        value: '{{workflow.parameters.verbose}}'
+      image: keykoio/nevermined-pod-config-py
+      imagePullPolicy: IfNotPresent
+      name: configuratorPod
+      volumeMounts:
+      - mountPath: /data
+        name: workdir
+      - mountPath: /artifacts
+        name: artifacts-volume
+
+  - name: transformationPod
+    container:
+      args:
+      - cd $NEVERMINED_TRANSFORMATIONS_PATH/*/;                                   run-participant
+        --data-directory data --coordinator-url http://172.17.0.2:8081 --write-performance-metrics
+        $NEVERMINED_OUTPUTS_PATH/perf.txt;                                    ls -lR
+        /data/outputs/
+      command:
+      - sh
+      - -cxe
+      env:
+      - name: VOLUME
+        value: '{{workflow.parameters.volume}}'
+      - name: NEVERMINED_INPUTS_PATH
+        value: '{{workflow.parameters.volume}}/inputs'
+      - name: NEVERMINED_OUTPUTS_PATH
+        value: '{{workflow.parameters.volume}}/outputs'
+      - name: NEVERMINED_TRANSFORMATIONS_PATH
+        value: '{{workflow.parameters.volume}}/transformations'
+      image: keykoio/xain-fl-participant:latest
+      imagePullPolicy: IfNotPresent
+      name: transformationPod
+      volumeMounts:
+      - mountPath: /data
+        name: workdir
+
+  - name: publishingPod
+    container:
+      args:
+      - cp -rv /artifacts ./artifacts;         ls -l;          pod-publishing          --workflow
+        $WORKFLOW          --path $VOLUME          --credentials $CREDENTIALS          --password
+        $PASSWORD          --node $NODE          --gateway-url $GATEWAY_URL          --metadata-url
+        $METADATA_URL          --secretstore-url $SECRET_STORE_URL;          ls -lR
+        /data
+      command:
+      - sh
+      - -cxe
+      env:
+      - name: CREDENTIALS
+        value: '{{workflow.parameters.credentials}}'
+      - name: PASSWORD
+        value: '{{workflow.parameters.password}}'
+      - name: INPUTS
+        value: '{{workflow.parameters.inputs}}'
+      - name: TRANSFORMATIONS
+        value: '{{workflow.parameters.transformations}}'
+      - name: VOLUME
+        value: '{{workflow.parameters.volume}}'
+      - name: NODE
+        value: '{{workflow.parameters.node}}'
+      - name: WORKFLOW
+        value: '{{workflow.parameters.workflow}}'
+      - name: METADATA_URL
+        value: '{{workflow.parameters.metadata_url}}'
+      - name: GATEWAY_URL
+        value: '{{workflow.parameters.gateway_url}}'
+      - name: SECRET_STORE_URL
+        value: '{{workflow.parameters.secret_store_url}}'
+      image: keykoio/nevermined-pod-publishing-py:latest
+      imagePullPolicy: IfNotPresent
+      name: publishingPod
+      volumeMounts:
+      - mountPath: /data
+        name: workdir
+      - mountPath: /artifacts
+        name: artifacts-volume
+
+  volumeClaimTemplates:
+  - metadata:
+      name: workdir
+    spec:
+      accessModes:
+      - ReadWriteMany
+      resources:
+        requests:
+          storage: 2Gi
+  volumes:
+  - configMap:
+      name: artifacts
+    name: artifacts-volume
+status: {}
+
