@@ -1,16 +1,15 @@
-from pathlib import Path
 import logging
 from configparser import ConfigParser
 from os import path
+import json
 
 import kubernetes
 import yaml
 from argo.workflows import config
 from argo.workflows.client import V1alpha1Api
-from common_utils_py.ddo.ddo import DDO
 from flask import Blueprint, jsonify, request
 from kubernetes.client.rest import ApiException
-from nevermined_compute_api.workflow_utils import create_templates, create_volume_claim_templates, create_arguments, setup_keeper, create_execution
+from nevermined_compute_api.workflow_utils import setup_keeper, create_execution
 
 services = Blueprint('services', __name__)
 
@@ -37,8 +36,8 @@ def init_execution():
     Initialize the execution when someone call to the execute endpoint in brizo.
     swagger_from_file: docs/init.yml
     """
+    print(json.dumps(request.json["workflow"], indent=2))
     body = create_execution(request.json['workflow'])
-    print(yaml.dump(body))
 
     try:
         api_response = v1alpha1.create_namespaced_workflow(namespace, body)
