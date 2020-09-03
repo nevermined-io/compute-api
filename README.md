@@ -12,7 +12,7 @@ Table of Contents
       * [About](#about)
       * [Getting Started](#getting-started)
          * [Local Environment](#local-environment)
-            * [Installing AWS &amp; K8s tools](#installing-aws--k8s-tools)
+            * [Setting up minikube ](#setting-up-minikube)
             * [Running the Service](#running-the-service)
          * [Testing](#testing)
          * [New Version](#new-version)
@@ -45,80 +45,58 @@ setup of those in the K8s infrastructure.
 To do that, in a local environment the Compute API needs connectivity to you K8s environment.
 
 There are multiple configurations and deployments of K8s possible, but here we are going to show 
-how to connect to an existing K8s cluster running in Amazon Web Services (AWS).
+how to connect to an existing K8s cluster running in minikube.
 
-#### Installing AWS & K8s tools
+#### Setting up minikube
 
-First is necessary to install the AWS CLI:
+First is necessary to configure the `minikube` compute stack using
+[`nevermined-tools`](https://github.com/keyko-io/nevermined-tools)
 
+```bash
+# There are some bugs affecting minikube with k8s 1.18.0 so we need to use 1.17.0
+$ minikube config set kubernetes-version 1.17.0
+
+# Start compute stack
+$ ./scripts/setup_minikube.sh
+
+# If minikube refuses to start due to virtualization problems be can set the minikube driver to docker
+$ MINIKUBE_DRIVER=docker ./scripts/setup_minikube.sh
+
+# Create a configmap for the artifacts
+$ kubectl create configmap artifacts \
+    --from-file=$HOME/.nevermined/nevermined-contracts/artifacts/ \
+    --namespace=nevermined-compute
+
+# Start the argo-artifacts service
+$ helm install argo-artifacts stable/minio --set service.type=LoadBalancer \
+    --set fullnameOverride=argo-artifacts
+
+# If helm can't find argo-artifacts add the helm repo and try again
+$ helm repo add stable https://kubernetes-charts.storage.googleapis.com/
+$ helm repo update
 ```
-$ sudo pip3 install awscli --upgrade
-
-$ aws --version
-aws-cli/1.16.225 Python/3.7.3 Linux/5.0.0-25-generic botocore/1.12.215
-
-```
-
-You need to install the `aws-iam-authenticator`
-
-```
-$ curl -o aws-iam-authenticator https://amazon-eks.s3-us-west-2.amazonaws.com/1.13.7/2019-06-11/bin/linux/amd64/aws-iam-authenticator
-chmod +x ./aws-iam-authenticator 
-```
-And later the Kubectl tool:
-
-```
-$ curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
-$ chmod +x ./kubectl
-$ sudo mv ./kubectl /usr/local/bin/kubectl
-$ kubectl version
-Client Version: version.Info{Major:"1", Minor:"15", GitVersion:"v1.15.3", GitCommit:"2d3c76f9091b6bec110a5e63777c332469e0cba2", GitTreeState:"clean", BuildDate:"2019-08-19T11:13:54Z", GoVersion:"go1.12.9", Compiler:"gc", Platform:"linux/amd64"}
-```
-
-To connect to your specific Kubernetes cluster you need to setup the `~/.kube/config` file with your environment setup.
-
-You can find the complete tutorials here:
-
-* https://aws.amazon.com/cli/
-* https://kubernetes.io/docs/tasks/tools/install-kubectl/
-* https://docs.aws.amazon.com/eks/latest/userguide/install-aws-iam-authenticator.html
-
 
 #### Running the Service
 
-Once you have Kubectl able to connect you your K8s cluster, run the service is as simple as running the following commands:
+Once you have the compute stack running with `minikube`, running the service is
+as simple as running the following commands:
 
+```bash
+# Copy the artifacts
+$ ./scripts/wait_for_migration_and_extract_keeper_artifacts.sh
 
-`export FLASK_APP=operator_service/run.py`
+# Set the environment variables
+export FLASK_APP = nevermined_compute_api/run.py
+export PROVIDER_ADDRESS=0x00bd138abd70e2f00903268f3db08f2d25677c9e
+export PROVIDER_PASSWORD=node0
+export PROVIDER_KEYFILE=tests/resources/data/publisher_key_file.json
 
-`flask run --host=0.0.0.0 --port 8050`
-
-Having the server running you can find the complete Swagger API documentation here:
-
-```
-http://0.0.0.0:8050/api/v1/docs/
-```
-
-And check some of the API functions like the create or the list of the existing workflow executions:
-
-```
-$ curl -X GET "http://localhost:8050/api/v1/operator/list" -H "accept: application/json"
-["9f9178dcffd34130a3158ce9ca3d15ff"]
+# start the compute api
+$ flask run --host=0.0.0.0 --port=8050
 ```
 
-
-### ENV Vars
-
-```
-     ALGO_POD_TIMEOUT  = the maximum amount of time in seconds that an algorithm can use before it is killed
-     POSTGRES_DB = Postgres database
-     POSTGRES_USER = Postgresql user
-     POSTGRES_PASSWORD = Postgresql password
-     POSTGRES_HOST = Postgresql host
-     POSTGRES_PORT = Postgresql port
-     SIGNATURE_REQUIRED = 0 -> no signature required, 1 -> request brizo signature
-     ALLOWED_PROVIDERS = Json array with allowed providers that can access the endpoints
-```
+Having the server running you can find the complete Swagger API documentation
+at [`http://localhost:8050/api/v1/docs/`](http://localhost:8050/api/v1/docs/)
 
 ### Testing
 

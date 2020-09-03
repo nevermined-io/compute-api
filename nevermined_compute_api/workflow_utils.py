@@ -17,6 +17,15 @@ KEYFILE = json.loads(Path(os.getenv("PROVIDER_KEYFILE")).read_text())
 
 
 def create_execution(workflow):
+    """Creates the argo workflow template
+
+    Args:
+        workflow (dict): The workflow submitted to the compute api
+
+    Returns:
+        dict: The workflow template filled by the compute api with all the parameters
+
+    """
     ddo = DDO(dictionary=workflow)
     workflow_template = get_workflow_template()
 
@@ -33,6 +42,15 @@ def create_execution(workflow):
 
 
 def create_arguments(ddo):
+    """Create the arguments that need to be add to the argo template.
+
+    Args:
+        ddo (:py:class:`common_utils_py.ddo.ddo.DDO`): The workflow DDO.
+
+    Returns:
+        list: The list of arguments to be appended to the argo workflow
+
+    """
     args = ''
     image = ''
     tag = ''
