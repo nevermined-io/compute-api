@@ -1,7 +1,6 @@
 import logging
 from configparser import ConfigParser
 from os import path
-import json
 
 import kubernetes
 import yaml
@@ -36,7 +35,6 @@ def init_execution():
     Initialize the execution when someone call to the execute endpoint in brizo.
     swagger_from_file: docs/init.yml
     """
-    print(json.dumps(request.json["workflow"], indent=2))
     body = create_execution(request.json['workflow'])
 
     try:
