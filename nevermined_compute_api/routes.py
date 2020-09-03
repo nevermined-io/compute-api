@@ -1,4 +1,3 @@
-from pathlib import Path
 import logging
 from configparser import ConfigParser
 from os import path
@@ -7,10 +6,9 @@ import kubernetes
 import yaml
 from argo.workflows import config
 from argo.workflows.client import V1alpha1Api
-from common_utils_py.ddo.ddo import DDO
 from flask import Blueprint, jsonify, request
 from kubernetes.client.rest import ApiException
-from nevermined_compute_api.workflow_utils import create_templates, create_volume_claim_templates, create_arguments, setup_keeper
+from nevermined_compute_api.workflow_utils import setup_keeper, create_execution
 
 services = Blueprint('services', __name__)
 
@@ -160,27 +158,3 @@ def list_executions():
 #         logging.error(
 #             f'Exception when calling CustomObjectsApi->read_namespaced_pod_log: {e}')
 #         return 'Error getting the logs', 400
-
-
-def create_execution(workflow):
-    ddo = DDO(dictionary=workflow)
-    execution = dict()
-    execution['apiVersion'] = group + '/' + version
-    execution['kind'] = 'Workflow'
-    # Init as a dict with the current library. It should be updated probably in the future.
-    execution['status'] = dict()
-    execution['metadata'] = dict()
-    execution['metadata']['generateName'] = 'nevermined-compute-'
-    execution['metadata']['namespace'] = namespace
-    execution['spec'] = dict()
-    execution['spec']['hostNetwork'] = True
-    execution['spec']['dnsPolicy'] = 'ClusterFirstWithHostNet'
-    execution['spec']['metadata'] = ddo.metadata
-    execution['spec']['entrypoint'] = 'compute-workflow'
-    execution['spec']['arguments'] = create_arguments(ddo)
-    execution['spec']['volumeClaimTemplates'] = create_volume_claim_templates()
-    execution['spec']['templates'] = create_templates(ddo)
-    execution['spec']['volumes'] = []
-    execution['spec']['volumes'].append(
-        {'name': 'artifacts-volume', 'configMap': {'name': 'artifacts'}})
-    return execution
