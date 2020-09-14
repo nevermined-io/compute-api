@@ -59,6 +59,9 @@ def create_arguments(ddo):
         options = {
             "resources": {
                 "metadata.url": "http://172.17.0.1:5000",
+            },
+            "keeper-contracts": {
+                "keeper.url": "http://172.17.0.1:8545"
             }
         }
         config = Config(options_dict=options)
