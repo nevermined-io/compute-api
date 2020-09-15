@@ -27,7 +27,7 @@ install_requirements = [
     'PyYAML==5.3',
     'pytz',
     'web3==5.9.0',
-    'nevermined-sdk-py==0.3.0',
+    'nevermined-sdk-py==0.4.0',
 ]
 
 setup_requirements = ['pytest-runner',]
