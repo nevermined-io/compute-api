@@ -1,4 +1,5 @@
 import logging
+import json
 import requests
 from configparser import ConfigParser
 from os import path
@@ -37,9 +38,6 @@ def init_execution():
     swagger_from_file: docs/init.yml
     """
     body = create_execution(request.json["serviceAgreementId"], request.json['workflow'])
-
-    import json
-    print(json.dumps(request.json, indent=2))
 
     try:
         api_response = v1alpha1.create_namespaced_workflow(namespace, body)
@@ -121,63 +119,29 @@ def list_executions():
 
 @services.route('/logs/<execution_id>', methods=['GET'])
 def get_logs(execution_id):
+    """
+    Get the logs for an execution id.
+    swagger_from_file: docs/logs.yml
+    """
     try:
         api_workflow = v1alpha1.get_namespaced_workflow(namespace, execution_id)
     except ApiException as e:
         logging.error(f"Exception when calling v1alpha1.get_namespaced_workflow: {e}")
         return f'Error getting workflow {execution_id}', 400
 
-    response = {}
+    # the root node does not contain logs
+    del api_workflow.status.nodes[execution_id]
+
+    result = []
     for (node_id, status) in api_workflow.status.nodes.items():
-        api_logs = requests.get("http://localhost:2746/api/v1/workflows/nevermined-compute/{namespace}/{node_id}/log?logOptions.container=main")
+        url = f"http://localhost:2746/api/v1/workflows/{namespace}/{execution_id}/{node_id}/log?logOptions.container=main"
+        api_logs = requests.get(url)
+        pod_name = status.display_name
 
+        # the returned response is not json
+        for line in api_logs.text.split("\n"):
+            if line:
+                line = json.loads(line)
+                result.append({"podName": pod_name, "content": line["result"]["content"]})
 
-
-
-
-
-
-
-# @services.route('/logs', methods=['GET'])
-# def get_logs():
-#     """
-#     Get the logs for an execution id.
-#     swagger_from_file: docs/logs.yml
-#     """
-#     data = request.args
-#     required_attributes = [
-#         'executionId',
-#         'component'
-#     ]
-#     try:
-#         execution_id = data.get('executionId')
-#         component = data.get('component')
-#         # First we need to get the name of the pods
-#         label_selector = f'workflow={execution_id},component={component}'
-#         logging.debug(f'Looking pods in ns {namespace} with labels {label_selector}')
-#         pod_response = api_core.list_namespaced_pod(namespace, label_selector=label_selector)
-#     except ApiException as e:
-#         logging.error(
-#             f'Exception when calling CustomObjectsApi->list_namespaced_pod: {e}')
-#         return 'Error getting the logs', 400
-#
-#     try:
-#         pod_name = pod_response.items[0].metadata.name
-#         logging.debug(f'pods found: {pod_response}')
-#     except IndexError as e:
-#         logging.warning(f'Exception getting information about the pod with labels {
-#         label_selector}.'
-#                         f' Probably pod does not exist')
-#         return f'Pod with workflow={execution_id} and component={component} not found', 404
-#
-#     try:
-#         logging.debug(f'looking logs for pod {pod_name} in namespace {namespace}')
-#         logs_response = api_core.read_namespaced_pod_log(name=pod_name, namespace=namespace)
-#         r = Response(response=logs_response, status=200, mimetype="text/plain")
-#         r.headers["Content-Type"] = "text/plain; charset=utf-8"
-#         return r
-#
-#     except ApiException as e:
-#         logging.error(
-#             f'Exception when calling CustomObjectsApi->read_namespaced_pod_log: {e}')
-#         return 'Error getting the logs', 400
+    return jsonify(result), 200
