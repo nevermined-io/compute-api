@@ -1,4 +1,5 @@
 import logging
+import requests
 from configparser import ConfigParser
 from os import path
 
@@ -35,7 +36,10 @@ def init_execution():
     Initialize the execution when someone call to the execute endpoint in brizo.
     swagger_from_file: docs/init.yml
     """
-    body = create_execution(request.json['workflow'])
+    body = create_execution(request.json["serviceAgreementId"], request.json['workflow'])
+
+    import json
+    print(json.dumps(request.json, indent=2))
 
     try:
         api_response = v1alpha1.create_namespaced_workflow(namespace, body)
@@ -113,6 +117,25 @@ def list_executions():
         logging.error(
             f'Exception when calling CustomObjectsApi->list_cluster_custom_object: {e}')
         return 'Error listing workflows', 400
+
+
+@services.route('/logs/<execution_id>', methods=['GET'])
+def get_logs(execution_id):
+    try:
+        api_workflow = v1alpha1.get_namespaced_workflow(namespace, execution_id)
+    except ApiException as e:
+        logging.error(f"Exception when calling v1alpha1.get_namespaced_workflow: {e}")
+        return f'Error getting workflow {execution_id}', 400
+
+    response = {}
+    for (node_id, status) in api_workflow.status.nodes.items():
+        api_logs = requests.get("http://localhost:2746/api/v1/workflows/nevermined-compute/{namespace}/{node_id}/log?logOptions.container=main")
+
+
+
+
+
+
 
 
 # @services.route('/logs', methods=['GET'])

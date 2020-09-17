@@ -16,10 +16,11 @@ NAMESPACE = config_parser.get('resources', 'namespace')  # str | The custom reso
 KEYFILE = json.loads(Path(os.getenv("PROVIDER_KEYFILE")).read_text())
 
 
-def create_execution(workflow):
+def create_execution(service_agreement_id, workflow):
     """Creates the argo workflow template
 
     Args:
+        service_agreement_id (str): The id of the service agreement being executed
         workflow (dict): The workflow submitted to the compute api
 
     Returns:
@@ -32,6 +33,8 @@ def create_execution(workflow):
     workflow_template['apiVersion'] = GROUP + '/' + VERSION
     workflow_template['metadata']['namespace'] = NAMESPACE
     workflow_template['spec']['arguments']['parameters'] += create_arguments(ddo)
+    workflow_template["spec"]["workflowMetadata"]["labels"][
+        "serviceAgreementId"] = service_agreement_id
 
     if ddo.metadata["main"]["type"] == "fl-coordinator":
         workflow_template["spec"]["entrypoint"] = "coordinator-workflow"

@@ -6,18 +6,19 @@ consumes:
   - text/plain
 parameters:
   - name: executionId
-    in: query
+    in: path
     description: Id of the execution.
-    required: true
-    type: string
-  - name: component
-    in: query
-    description: Workflow component (configure, algorithm, publish)
     required: true
     type: string
 responses:
   200:
     description: Get correctly the logs
+    example: [
+                {"podName": "configurator", "content": "line1"},
+                {"podName": "configurator", "content": "line2"},
+                {"podName": "configurator", "content": "line3"},
+                {"podName": "transformation", "content": "line1"}
+             ]
   400:
     description: Error consume Kubernetes API
   404:
