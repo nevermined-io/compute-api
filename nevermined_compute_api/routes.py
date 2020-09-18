@@ -1,4 +1,6 @@
 import logging
+import json
+import requests
 from configparser import ConfigParser
 from os import path
 
@@ -8,6 +10,8 @@ from argo.workflows import config
 from argo.workflows.client import V1alpha1Api
 from flask import Blueprint, jsonify, request
 from kubernetes.client.rest import ApiException
+from kubernetes import client
+from kubernetes import config as kubernetes_config
 from nevermined_compute_api.workflow_utils import setup_keeper, create_execution
 
 services = Blueprint('services', __name__)
@@ -15,11 +19,15 @@ services = Blueprint('services', __name__)
 # Configuration to connect to k8s.
 if not path.exists('/.dockerenv'):
     config.load_kube_config()
+    kubernetes_config.load_kube_config()
 else:
     config.load_incluster_config()
+    kubernetes_config.load_incluster_config()
 
 # create instance of the API class
 v1alpha1 = V1alpha1Api()
+# create instance of the kubernetes client
+kubernetes_client = client.CoreV1Api()
 
 config_parser = ConfigParser()
 configuration = config_parser.read('config.ini')
@@ -35,7 +43,7 @@ def init_execution():
     Initialize the execution when someone call to the execute endpoint in brizo.
     swagger_from_file: docs/init.yml
     """
-    body = create_execution(request.json['workflow'])
+    body = create_execution(request.json["serviceAgreementId"], request.json['workflow'])
 
     try:
         api_response = v1alpha1.create_namespaced_workflow(namespace, body)
@@ -115,46 +123,37 @@ def list_executions():
         return 'Error listing workflows', 400
 
 
-# @services.route('/logs', methods=['GET'])
-# def get_logs():
-#     """
-#     Get the logs for an execution id.
-#     swagger_from_file: docs/logs.yml
-#     """
-#     data = request.args
-#     required_attributes = [
-#         'executionId',
-#         'component'
-#     ]
-#     try:
-#         execution_id = data.get('executionId')
-#         component = data.get('component')
-#         # First we need to get the name of the pods
-#         label_selector = f'workflow={execution_id},component={component}'
-#         logging.debug(f'Looking pods in ns {namespace} with labels {label_selector}')
-#         pod_response = api_core.list_namespaced_pod(namespace, label_selector=label_selector)
-#     except ApiException as e:
-#         logging.error(
-#             f'Exception when calling CustomObjectsApi->list_namespaced_pod: {e}')
-#         return 'Error getting the logs', 400
-#
-#     try:
-#         pod_name = pod_response.items[0].metadata.name
-#         logging.debug(f'pods found: {pod_response}')
-#     except IndexError as e:
-#         logging.warning(f'Exception getting information about the pod with labels {
-#         label_selector}.'
-#                         f' Probably pod does not exist')
-#         return f'Pod with workflow={execution_id} and component={component} not found', 404
-#
-#     try:
-#         logging.debug(f'looking logs for pod {pod_name} in namespace {namespace}')
-#         logs_response = api_core.read_namespaced_pod_log(name=pod_name, namespace=namespace)
-#         r = Response(response=logs_response, status=200, mimetype="text/plain")
-#         r.headers["Content-Type"] = "text/plain; charset=utf-8"
-#         return r
-#
-#     except ApiException as e:
-#         logging.error(
-#             f'Exception when calling CustomObjectsApi->read_namespaced_pod_log: {e}')
-#         return 'Error getting the logs', 400
+@services.route('/logs/<execution_id>', methods=['GET'])
+def get_logs(execution_id):
+    """
+    Get the logs for an execution id.
+    swagger_from_file: docs/logs.yml
+    """
+    try:
+        api_workflow = v1alpha1.get_namespaced_workflow(namespace, execution_id)
+    except ApiException as e:
+        logging.error(f"Exception when calling v1alpha1.get_namespaced_workflow: {e}")
+        return f'Error getting workflow {execution_id}', 400
+
+    # the root node does not contain logs
+    del api_workflow.status.nodes[execution_id]
+
+    result = []
+    for (node_id, status) in api_workflow.status.nodes.items():
+        pod_name = status.display_name
+
+        try:
+            api_logs = kubernetes_client.read_namespaced_pod_log(name=node_id, namespace=namespace,
+                                                                 container="main")
+        except ApiException as e:
+            if e.status == 404:
+                # the pod is not running yet
+                continue
+
+            logging.error(f"Error getting pod {node_id} logs: {e}")
+            return f"Error getting logs", 400
+
+        for line in api_logs.split("\n"):
+            result.append({"podName": pod_name, "content": line})
+
+    return jsonify(result), 200
