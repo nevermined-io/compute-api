@@ -59,6 +59,8 @@ def create_arguments(ddo):
     tag = ''
 
     if ddo.metadata["main"]["type"] != "fl-coordinator":
+        workflow = ddo.metadata["main"]["workflow"]
+
         options = {
             "resources": {
                 "metadata.url": "http://172.17.0.1:5000",
@@ -69,7 +71,6 @@ def create_arguments(ddo):
         }
         config = Config(options_dict=options)
         nevermined = Nevermined(config)
-        workflow = ddo.metadata["main"]["workflow"]
 
         # TODO: Currently this only supports one stage
         transformation_did = workflow["stages"][0]["transformation"]["id"]

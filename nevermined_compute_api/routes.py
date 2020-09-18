@@ -10,8 +10,9 @@ from argo.workflows import config
 from argo.workflows.client import V1alpha1Api
 from flask import Blueprint, jsonify, request
 from kubernetes.client.rest import ApiException
-from kubernetes import client
-from kubernetes import config as kubernetes_config
+from kubernetes import client, config as kubernetes_config
+from nevermined_sdk_py import Nevermined, Config
+
 from nevermined_compute_api.workflow_utils import setup_keeper, create_execution
 
 services = Blueprint('services', __name__)
@@ -155,5 +156,57 @@ def get_logs(execution_id):
 
         for line in api_logs.split("\n"):
             result.append({"podName": pod_name, "content": line})
+
+    return jsonify(result), 200
+
+
+@services.route('/status/<execution_id>', methods=['GET'])
+def get_status(execution_id):
+    """
+    Get the status for an execution id.
+    swagger_from_file: docs/status.yml
+    """
+    try:
+        api_workflow = v1alpha1.get_namespaced_workflow(namespace, execution_id)
+    except ApiException as e:
+        logging.error(f"Exception when calling v1alpha1.get_namespaced_workflow: {e}")
+        return f'Error getting workflow {execution_id}', 400
+
+    result = {}
+    pods = []
+    for (node_id, status) in api_workflow.status.nodes.items():
+        pod_name = status.display_name
+        if pod_name == execution_id:
+            result = {
+                "status": status.phase,
+                "startedAt": status.started_at.isoformat(timespec="seconds") + "Z",
+                "finishedAt": status.finished_at.isoformat(timespec="seconds") + "Z",
+                "did": None,
+                "pods": []
+            }
+        else:
+            status_message = {
+                "podName": pod_name,
+                "status": status.phase,
+                "startedAt": status.started_at.isoformat(timespec="seconds") + "Z",
+                "finishedAt": status.finished_at.isoformat(timespec="seconds") + "Z"
+            }
+            pods.append(status_message)
+
+    result["pods"] = pods
+
+    if result["status"] == "Succeeded":
+        options = {
+            "resources": {
+                "metadata.url": "http://172.17.0.1:5000",
+            },
+            "keeper-contracts": {
+                "keeper.url": "http://172.17.0.1:8545"
+            }
+        }
+        config = Config(options_dict=options)
+        nevermined = Nevermined(config)
+        ddo = nevermined.assets.search(f'"{execution_id}"')[0]
+        result["did"] = ddo.did
 
     return jsonify(result), 200
