@@ -10,6 +10,8 @@ from argo.workflows import config
 from argo.workflows.client import V1alpha1Api
 from flask import Blueprint, jsonify, request
 from kubernetes.client.rest import ApiException
+from kubernetes import client
+from kubernetes import config as kubernetes_config
 from nevermined_compute_api.workflow_utils import setup_keeper, create_execution
 
 services = Blueprint('services', __name__)
@@ -17,11 +19,15 @@ services = Blueprint('services', __name__)
 # Configuration to connect to k8s.
 if not path.exists('/.dockerenv'):
     config.load_kube_config()
+    kubernetes_config.load_kube_config()
 else:
     config.load_incluster_config()
+    kubernetes_config.load_incluster_config()
 
 # create instance of the API class
 v1alpha1 = V1alpha1Api()
+# create instance of the kubernetes client
+kubernetes_client = client.CoreV1Api()
 
 config_parser = ConfigParser()
 configuration = config_parser.read('config.ini')
@@ -134,14 +140,20 @@ def get_logs(execution_id):
 
     result = []
     for (node_id, status) in api_workflow.status.nodes.items():
-        url = f"http://localhost:2746/api/v1/workflows/{namespace}/{execution_id}/{node_id}/log?logOptions.container=main"
-        api_logs = requests.get(url)
         pod_name = status.display_name
 
-        # the returned response is not json
-        for line in api_logs.text.split("\n"):
-            if line:
-                line = json.loads(line)
-                result.append({"podName": pod_name, "content": line["result"]["content"]})
+        try:
+            api_logs = kubernetes_client.read_namespaced_pod_log(name=node_id, namespace=namespace,
+                                                                 container="main")
+        except ApiException as e:
+            if e.status == 404:
+                # the pod is not running yet
+                continue
+
+            logging.error(f"Error getting pod {node_id} logs: {e}")
+            return f"Error getting logs", 400
+
+        for line in api_logs.split("\n"):
+            result.append({"podName": pod_name, "content": line})
 
     return jsonify(result), 200
