@@ -227,6 +227,8 @@ spec:
         value: '{{workflow.parameters.gateway_url}}'
       - name: SECRET_STORE_URL
         value: '{{workflow.parameters.secret_store_url}}'
+      - name: EXECUTION_ID
+        value: '{{workflow.name}}'
       volumeMounts:
       - mountPath: /data
         name: workdir

@@ -15,6 +15,17 @@ VERSION = config_parser.get('resources', 'version')  # str | The custom resource
 NAMESPACE = config_parser.get('resources', 'namespace')  # str | The custom resource's namespace
 KEYFILE = json.loads(Path(os.getenv("PROVIDER_KEYFILE")).read_text())
 
+# setup nevermined instance
+options = {
+    "resources": {
+        "metadata.url": "http://172.17.0.1:5000",
+    },
+    "keeper-contracts": {
+        "keeper.url": "http://172.17.0.1:8545"
+    }
+}
+config = Config(options_dict=options)
+nevermined = Nevermined(config)
 
 def create_execution(service_agreement_id, workflow):
     """Creates the argo workflow template
@@ -59,16 +70,6 @@ def create_arguments(ddo):
     tag = ''
 
     if ddo.metadata["main"]["type"] != "fl-coordinator":
-        options = {
-            "resources": {
-                "metadata.url": "http://172.17.0.1:5000",
-            },
-            "keeper-contracts": {
-                "keeper.url": "http://172.17.0.1:8545"
-            }
-        }
-        config = Config(options_dict=options)
-        nevermined = Nevermined(config)
         workflow = ddo.metadata["main"]["workflow"]
 
         # TODO: Currently this only supports one stage
