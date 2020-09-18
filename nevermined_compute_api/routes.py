@@ -10,9 +10,10 @@ from argo.workflows import config
 from argo.workflows.client import V1alpha1Api
 from flask import Blueprint, jsonify, request
 from kubernetes.client.rest import ApiException
-from kubernetes import client
-from kubernetes import config as kubernetes_config
-from nevermined_compute_api.workflow_utils import setup_keeper, create_execution, nevermined
+from kubernetes import client, config as kubernetes_config
+from nevermined_sdk_py import Nevermined, Config
+
+from nevermined_compute_api.workflow_utils import setup_keeper, create_execution
 
 services = Blueprint('services', __name__)
 
@@ -195,6 +196,16 @@ def get_status(execution_id):
     result["pods"] = pods
 
     if result["status"] == "Succeeded":
+        options = {
+            "resources": {
+                "metadata.url": "http://172.17.0.1:5000",
+            },
+            "keeper-contracts": {
+                "keeper.url": "http://172.17.0.1:8545"
+            }
+        }
+        config = Config(options_dict=options)
+        nevermined = Nevermined(config)
         ddo = nevermined.assets.search(f'"{execution_id}"')[0]
         result["did"] = ddo.did
 
