@@ -180,7 +180,8 @@ def get_status(execution_id):
             result = {
                 "status": status.phase,
                 "startedAt": status.started_at.isoformat(timespec="seconds") + "Z",
-                "finishedAt": status.finished_at.isoformat(timespec="seconds") + "Z",
+                "finishedAt": status.finished_at.isoformat(timespec="seconds") + "Z" \
+                    if status.finished_at else None,
                 "did": None,
                 "pods": []
             }
@@ -189,7 +190,8 @@ def get_status(execution_id):
                 "podName": pod_name,
                 "status": status.phase,
                 "startedAt": status.started_at.isoformat(timespec="seconds") + "Z",
-                "finishedAt": status.finished_at.isoformat(timespec="seconds") + "Z"
+                "finishedAt": status.finished_at.isoformat(timespec="seconds") + "Z" \
+                    if status.finished_at else None,
             }
             pods.append(status_message)
 
