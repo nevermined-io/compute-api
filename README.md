@@ -1,6 +1,7 @@
-[![banner](https://raw.githubusercontent.com/keyko-io/assets/master/images/logo/nevermined_logo_1.png)](https://nevermined.io)
+[![banner](https://raw.githubusercontent.com/nevermined-io/assets/main/images/logo/banner_logo.png)](https://nevermined.io)
 
-# Nevermined Compute API 
+
+# Nevermined Compute API
 
 > Compute to the Data Infrastructure Orchestration Micro-service
 
@@ -22,9 +23,9 @@ Table of Contents
 
 ## About
 
-The Compute API is a micro-service implementing the Nevermined Compute to the Data use case, 
+The Compute API is a micro-service implementing the Nevermined Compute to the Data use case,
 in charge of managing the workflow executing requests.
-Typically the Compute Service is integrated with the [Nevermined Gateway](https://github.com/keyko-io/nevermined-gateway),
+Typically the Compute Service is integrated with the [Nevermined Gateway](https://github.com/nevermined-io/gateway),
 but can be called independently of it.
 
 The Compute API is in charge of establishing the communication with the K8s cluster, allowing to:
@@ -40,17 +41,17 @@ The Compute API doesn't provide any storage capability for workflows, all the st
 
 ### Local Environment
 
-The Compute API is in charge of receiving the requests for running compute workflows and the 
+The Compute API is in charge of receiving the requests for running compute workflows and the
 setup of those in the K8s infrastructure.
 To do that, in a local environment the Compute API needs connectivity to you K8s environment.
 
-There are multiple configurations and deployments of K8s possible, but here we are going to show 
+There are multiple configurations and deployments of K8s possible, but here we are going to show
 how to connect to an existing K8s cluster running in minikube.
 
 #### Setting up minikube
 
 First is necessary to configure the `minikube` compute stack using
-[`nevermined-tools`](https://github.com/keyko-io/nevermined-tools)
+[`nevermined-tools`](https://github.com/nevermined-io/tools)
 
 ```bash
 # There are some bugs affecting minikube with k8s 1.18.0 so we need to use 1.17.0
@@ -104,7 +105,7 @@ Automatic tests are set up via GitHub actions.
 
 ### New Version
 
-The `bumpversion.sh` script helps bump the project version. You can execute the script using `{major|minor|patch}` 
+The `bumpversion.sh` script helps bump the project version. You can execute the script using `{major|minor|patch}`
 as first argument, to bump the version accordingly.
 
 ## Attribution

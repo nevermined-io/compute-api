@@ -56,7 +56,7 @@ def nevermined_mock(mocker):
 
 
 workflow_ddo = json.loads(urlopen(
-    "https://raw.githubusercontent.com/keyko-io/nevermined-docs/master/docs/architecture/specs"
+    "https://raw.githubusercontent.com/nevermined-io/docs/master/docs/architecture/specs"
     "/examples/metadata/v0.1/ddo-example-workflow.json").read().decode(
     'utf-8'))
 
