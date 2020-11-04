@@ -49,7 +49,7 @@ test_requirements = [
 
 setup(
     author="Keyko",
-    author_email='root@keyko.io',
+    author_email='root@nevermined.io',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
@@ -65,7 +65,7 @@ setup(
     },
     include_package_data=True,
     install_requires=install_requirements,
-    keywords='nevermined-compute-api',
+    keywords='compute-api',
     license="Apache Software License 2.0",
     long_description=readme,
     long_description_content_type="text/markdown",
@@ -74,7 +74,7 @@ setup(
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
-    url='https://github.com/keyko-io/nevermined-compute-api',
+    url='https://github.com/nevermined-io/compute-api',
     version='0.2.0',
     zip_safe=False,
     package_data={'nevermined_compute_api': ['*.yaml']}
