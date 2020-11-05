@@ -65,7 +65,7 @@ setup(
     },
     include_package_data=True,
     install_requires=install_requirements,
-    keywords='compute-api',
+    keywords='nevermined-compute-api',
     license="Apache Software License 2.0",
     long_description=readme,
     long_description_content_type="text/markdown",
