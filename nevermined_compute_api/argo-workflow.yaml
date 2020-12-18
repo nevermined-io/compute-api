@@ -92,7 +92,7 @@ spec:
 
   - name: configuratorPod
     container:
-      image: keykoio/nevermined-pod-config-py
+      image: neverminedio/pod-config-py:latest
       imagePullPolicy: IfNotPresent
       name: configuratorPod
       command:
@@ -191,7 +191,7 @@ spec:
 
   - name: publishingPod
     container:
-      image: keykoio/nevermined-pod-publishing-py:latest
+      image: neverminedio/pod-publishing-py:latest
       imagePullPolicy: IfNotPresent
       name: publishingPod
       command:

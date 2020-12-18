@@ -10,6 +10,7 @@ RUN apt-get update \
 COPY . /nevermined-compute-api
 WORKDIR /nevermined-compute-api
 
+RUN pip install pip==20.2.4
 RUN pip install .
 
 # config.ini configuration file variables

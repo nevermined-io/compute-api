@@ -21,20 +21,31 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-    - name: setup-minikube
-      uses: medyagh/setup-minikube@v0.0.2
-    - name: Set up argo
+
+    - name: Install minikube v1.12.0
       run: |
-        curl -sLO https://github.com/argoproj/argo/releases/download/v2.8.1/argo-linux-amd64
-        chmod +x argo-linux-amd64
-        sudo mv ./argo-linux-amd64 /usr/local/bin/argo
-        kubectl create namespace nevermined-compute
-        kubectl apply -n nevermined-compute -f https://raw.githubusercontent.com/argoproj/argo/stable/manifests/install.yaml
-#    - name: Debugging with tmate
-#      uses: mxschmitt/action-tmate@v2
+        wget https://storage.googleapis.com/minikube/releases/v1.12.0/minikube-linux-amd64
+        chmod +x minikube-linux-amd64
+        sudo mv minikube-linux-amd64 /usr/local/bin/minikube
+
+    - name: Setup minikube
+      run: |
+        docker login -u ${{ secrets.NEVERMINED_DOCKER_USERNAME }} -p ${{ secrets.NEVERMINED_DOCKER_TOKEN}}
+        git clone https://github.com/nevermined-io/tools nevermined-tools
+        cd nevermined-tools
+
+        # mock artifacts ready since they are not neeeded to run the tests
+        mkdir -p $HOME/.nevermined/nevermined-contracts/artifacts
+        touch ${HOME}/.nevermined/nevermined-contracts/artifacts/ready
+
+        # start minikube
+        MINIKUBE_DRIVER=docker ./scripts/setup_minikube.sh
+        cd ..
+
+
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
+        pip install pip==20.2.4
         pip install -r requirements_dev.txt
     - name: Test with pytest
       run: |
