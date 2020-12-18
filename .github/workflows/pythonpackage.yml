@@ -39,7 +39,7 @@ jobs:
         touch ${HOME}/.nevermined/nevermined-contracts/artifacts/ready
 
         # start minikube
-        ./scripts/setup_minikube.sh
+        MINIKUBE_DRIVER=docker ./scripts/setup_minikube.sh
         cd ..
 
 
