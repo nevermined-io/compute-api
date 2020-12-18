@@ -13,8 +13,6 @@ with open('CHANGELOG.md') as history_file:
 
 install_requirements = [
     'coloredlogs',
-    'contracts-lib-py',
-    'common-utils-py==0.2.8',
     'Flask==1.1.2',
     'Flask-Cors==3.0.8',
     'flask-swagger==0.2.14',
@@ -27,7 +25,7 @@ install_requirements = [
     'PyYAML==5.3',
     'pytz',
     'web3==5.9.0',
-    'nevermined-sdk-py==0.4.0',
+    'nevermined-sdk-py==0.6.0',
 ]
 
 setup_requirements = ['pytest-runner',]
