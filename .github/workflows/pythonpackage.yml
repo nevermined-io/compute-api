@@ -32,8 +32,13 @@ jobs:
       run: |
         docker login -u ${{ secrets.NEVERMINED_DOCKER_USERNAME }} -p ${{ secrets.NEVERMINED_DOCKER_TOKEN}}
         git clone https://github.com/nevermined-io/tools nevermined-tools
-
         cd nevermined-tools
+
+        # mock artifacts ready since they are not neeeded to run the tests
+        mkdir -p $HOME/.nevermined/nevermined-contracts/artifacts
+        touch ${HOME}/.nevermined/nevermined-contracts/artifacts/ready
+
+        # start minikube
         ./scripts/setup_minikube.sh
         cd ..
 
