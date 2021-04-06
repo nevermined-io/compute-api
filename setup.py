@@ -22,7 +22,7 @@ install_requirements = [
     'kubernetes~=11.0',
     'requests>=2.21.0',
     'gunicorn==19.9.0',
-    'PyYAML==5.3',
+    'PyYAML==5.4',
     'pytz',
     'web3==5.9.0',
     'nevermined-sdk-py==0.9.0rc0',
