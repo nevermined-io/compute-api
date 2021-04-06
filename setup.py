@@ -25,7 +25,7 @@ install_requirements = [
     'PyYAML==5.3',
     'pytz',
     'web3==5.9.0',
-    'nevermined-sdk-py==0.6.0',
+    'nevermined-sdk-py==0.9.0rc0',
 ]
 
 setup_requirements = ['pytest-runner',]
@@ -53,7 +53,6 @@ setup(
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
         'Natural Language :: English',
-        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
     ],
     description="Infrastructure Operator Micro-service",
@@ -73,7 +72,7 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/nevermined-io/compute-api',
-    version='0.2.0',
+    version='0.3.0',
     zip_safe=False,
     package_data={'nevermined_compute_api': ['*.yaml']}
 )

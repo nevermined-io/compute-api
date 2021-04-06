@@ -6,7 +6,7 @@ COMMAND_STATUS=1
 mkdir -p artifacts
 
 until [ $COMMAND_STATUS -eq 0 ] || [ $RETRY_COUNT -eq 120 ]; do
-  nevermined_contracts_docker_id=$(docker container ls | grep nevermined-contracts | awk '{print $1}')
+  nevermined_contracts_docker_id=$(docker container ls | grep nevermined-keeper-node | awk '{print $1}')
   docker cp ${nevermined_contracts_docker_id}:/nevermined-contracts/artifacts/ready ./artifacts/
   COMMAND_STATUS=$?
   sleep 5

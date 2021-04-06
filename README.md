@@ -87,10 +87,10 @@ as simple as running the following commands:
 $ ./scripts/wait_for_migration_and_extract_keeper_artifacts.sh
 
 # Set the environment variables
-export FLASK_APP = nevermined_compute_api/run.py
+export FLASK_APP=nevermined_compute_api/run.py
 export PROVIDER_ADDRESS=0x00bd138abd70e2f00903268f3db08f2d25677c9e
 export PROVIDER_PASSWORD=node0
-export PROVIDER_KEYFILE=tests/resources/data/publisher_key_file.json
+export PROVIDER_KEYFILE=test/resources/data/publisher_key_file.json
 
 # start the compute api
 $ flask run --host=0.0.0.0 --port=8050
