@@ -57,6 +57,7 @@ spec:
         - transformation
 
   - name: coordinator-workflow
+    retryPolicy: "Never"
     dag:
       tasks:
       - name: configurator
@@ -94,7 +95,7 @@ spec:
     container:
       image: neverminedio/pod-config-py:latest
       imagePullPolicy: IfNotPresent
-      name: configuratorPod
+      name: configurator-pod
       command:
       - sh
       - -cxe
